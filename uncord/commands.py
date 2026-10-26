@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shlex
 import time
 
@@ -40,8 +41,9 @@ class CommandsMixin:
   click a reaction to add/remove yours, click the trailing + to pick a new one
   v view image/sticker/emoji in the terminal   o open link   s reveal spoilers
   y copy text   c copy message link   t open thread   P pin/unpin
-  m DM the author   p profile (with avatar)   g/G top/bottom   esc back
-  ↑ at the top loads older messages
+  m DM the author   p profile (with avatar)   J jump to the replied message   g/G top/bottom   esc back
+  ↑ at the top loads older messages. After jumping to an old message, ↓ at the bottom loads newer ones
+    and G (or clicking the bar under the chat) goes back to the present
 
 [b]Composer[/b]
   @name, #channel, :emoji: autocomplete. Tab or Enter picks, ↑/↓ choose
@@ -165,11 +167,71 @@ class CommandsMixin:
             hint = " ".join(f"{o.name}:…" for o in opts)
             self.notify(f"/{path} needs {', '.join(missing)}. Usage: /{path} {hint}", severity="warning", markup=False)
             return
+        byName = {o.name: o for o in opts}
+        try:
+            kwargs = {k: self.appOptionValue(byName[k], v, ch) if k in byName else v for k, v in kwargs.items()}
+        except ValueError as e:
+            self.notify(f"/{path}: {e}", severity="warning", markup=False)
+            return
         try:
             await c(ch, **kwargs)
         except Exception as e:
             log.exception("app command")
             self.notify(f"/{path} ({bot}) failed: {e}", severity="error", markup=False)
+
+    #typed text into what the library wants per option type, it calls .id on users and bool() on "false"
+    def appOptionValue(self, o, val: str, ch):
+        T = discord.ApplicationCommandOptionType
+        t = o.type
+        g = getattr(ch, "guild", None)
+        choices = list(getattr(o, "choices", None) or [])
+        if choices:
+            low = val.lower()
+            for c in choices:
+                if low in (str(c.name).lower(), str(c.value).lower()):
+                    return c.value
+            raise ValueError(f"{o.name} must be one of: {', '.join(str(c.name) for c in choices)}")
+        if t is T.boolean:
+            low = val.lower()
+            if low in ("true", "yes", "y", "on", "1"):
+                return True
+            if low in ("false", "no", "n", "off", "0"):
+                return False
+            raise ValueError(f"{o.name} must be true or false")
+        if t is T.integer:
+            try:
+                return int(val)
+            except ValueError:
+                raise ValueError(f"{o.name} must be a whole number") from None
+        if t is T.number:
+            try:
+                return float(val)
+            except ValueError:
+                raise ValueError(f"{o.name} must be a number") from None
+        if t is T.attachment:
+            p = os.path.expanduser(val.strip("'\""))
+            if not os.path.isfile(p):
+                raise ValueError(f"{o.name}: no file at {val}")
+            return discord.File(p)
+        m = re.fullmatch(r"<(@!?|@&|#)?(\d{15,21})>|(\d{15,21})", val.strip())
+        if m:
+            return discord.Object(int(m.group(2) or m.group(3)))
+        name = val.lstrip("@#").lower()
+        if t in (T.user, T.mentionable):
+            found = self.findUsers(name)
+            if found:
+                return found[0]
+        if t in (T.role, T.mentionable) and g is not None:
+            r = discord.utils.find(lambda r: r.name.lower() == name, g.roles)
+            if r is not None:
+                return r
+        if t is T.channel and g is not None:
+            c = discord.utils.find(lambda c: c.name.lower() == name, g.channels)
+            if c is not None:
+                return c
+        if t in (T.user, T.mentionable, T.role, T.channel):
+            raise ValueError(f"couldn't find {val!r} for {o.name}")
+        return val
 
     async def runCommand(self, cmd: str) -> None:
         name, _, arg = cmd.partition(" ")

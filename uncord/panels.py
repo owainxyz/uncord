@@ -216,3 +216,10 @@ class Sidebar(Tree):
             self.app.threadPicker(obj)
         elif kind == "chan" and isinstance(obj, (discord.DMChannel, discord.GroupChannel)):
             self.app.dmMenu(obj)
+
+
+#shown under the chat after jumping back in time, click to come back
+class DetachedBar(Static):
+    def on_click(self, event) -> None:
+        event.stop()
+        self.app.jumpToPresent()

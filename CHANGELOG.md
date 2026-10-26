@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.77 (2026-10-26)
+
+- Jumping to an old message (from pins, search or a reply) no longer strands you: scroll or press ↓ at the bottom to load newer messages, and G or the bar under the chat takes you back to the present. New messages that arrive meanwhile are counted on that bar instead of being stuck under old history
+- `J` (or the message menu) jumps to the message a reply is answering, loading it if it's further back
+- Bot slash commands with user, channel, role, true/false, number, file or choice options now work. Before, a user or role option failed outright and `flag:false` was sent as true. Mentions, IDs and names all work, choices ignore case, and bad values get a clear message
+- If saving an edit or sending a reply fails, the edit or reply is kept, so pressing Enter again retries it instead of posting a new message
+- When a message is deleted, the next one gets its name back if it was grouped under it, and an empty date line goes away
+- Clicking a reaction a bunch of times quickly now sends one request for where you end up (or none if you end where you started) instead of one per click, so Discord stops rate limiting you
+- Copy text in the message menu copies attachment links when the message has no text, like `y` does
+- Muted chats no longer send desktop notifications while you're in them with the terminal unfocused
+
 ## 0.76a (2026-10-19)
 
 - `uncord --login` uses the account you just logged in with even when `UNCORD_TOKEN` is set

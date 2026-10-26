@@ -57,7 +57,7 @@ from .client import UncordClient
 from .commands import CommandsMixin
 from .messages import MessageList, MessageView, canGroup
 from .msgactions import MessageActionsMixin
-from .panels import ChatInput, ComposerButton, MemberList, Sidebar, SidePanel, TitleBar, VoiceBar
+from .panels import ChatInput, ComposerButton, DetachedBar, MemberList, Sidebar, SidePanel, TitleBar, VoiceBar
 from .pickers import PickersMixin
 from .servers import ServersMixin
 from .screens import Picker
@@ -143,6 +143,8 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
     #attach { height: auto; padding: 0 1; display: none; }
     #attach.on { display: block; }
     #compose.on { display: block; }
+    #detached { height: 1; padding: 0 1; color: $accent; display: none; }
+    #detached.on { display: block; }
     #suggest { height: 1; padding: 0 1; display: none; }
     .modal.confirm { width: 60; height: 6; }
     .modal.gifs { width: 110; max-width: 98%; height: 30; }
@@ -238,6 +240,9 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.historyPos = -1
         self._loadGen = 0
         self._loadingOlder = False
+        self._loadingNewer = False
+        self.detached = False
+        self.detachedNew = 0
         self._lastTypingSent = 0.0
         self._readyOnce = False
         self._lastTalking = None
@@ -356,6 +361,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                 yield VoiceBar("", id="voicebar")
                 yield MessageList(id="messages")
                 yield Static("loading…", id="loading")
+                yield DetachedBar("", id="detached")
                 yield Static("", id="typing")
                 yield Static("", id="compose")
                 yield Static("", id="attach")
@@ -1180,6 +1186,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self._loadGen += 1
         gen = self._loadGen
         ml = self.query_one("#messages", MessageList)
+        self.setDetached(False)
         try:
             acked = ch.read_state.last_acked_id
         except Exception:
@@ -1226,7 +1233,10 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             self.setLoading(False)
             await ml.mount(Static(Text(f"Failed to load history: {msgs}", style="red")))
             return
-        await self._showMessages(ml, ch, msgs, acked if around is None else None)
+        await self._showMessages(ml, ch, msgs, acked if around is None else None, end=around is None)
+        last = getattr(ch, "last_message_id", None)
+        if around is not None and msgs and last and msgs[-1].id < last:
+            self.setDetached(True)
         if around is not None:
             ml.focus()
             idx = next((i for i, w in enumerate(ml.views()) if w.message.id == around.id), len(msgs) - 1)
@@ -1234,7 +1244,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.scheduleAck(ch, 0.5)
 
     #keep the loading screen up until recent images are drawn so the view doesnt jump
-    async def _showMessages(self, ml, ch, msgs, acked) -> None:
+    async def _showMessages(self, ml, ch, msgs, acked, end: bool = True) -> None:
         if not msgs:
             await ml.mount(
                 Static(Text(f"This is the start of {channelName(ch)}. Say hi!", style="bright_black"))
@@ -1256,7 +1266,8 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         if gen != self._loadGen:
             return
         self.setLoading(False)
-        ml.call_after_refresh(ml.scroll_end, animate=False)
+        if end:
+            ml.call_after_refresh(ml.scroll_end, animate=False)
 
     def setLoading(self, on: bool) -> None:
         self.query_one("#messages").set_class(on, "loading")
@@ -1316,6 +1327,50 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             ml.select(len(msgs) - 1)
         finally:
             self._loadingOlder = False
+
+    #after jumping to an old message the list stops short of the present until you scroll down to it
+    def setDetached(self, on: bool) -> None:
+        if not on:
+            self.detachedNew = 0
+        self.detached = on
+        bar = self.query_one("#detached", Static)
+        new = f" · {self.detachedNew} new" if self.detachedNew else ""
+        bar.update(Text(f"viewing older messages{new} · G or click here to jump to the present"))
+        bar.set_class(on, "on")
+
+    def jumpToPresent(self) -> None:
+        if self.current is not None:
+            self.loadHistory(self.current)
+
+    def loadNewer(self) -> None:
+        if self._loadingNewer or not self.detached or self.current is None:
+            return
+        self._loadingNewer = True
+        self._loadNewer(self.current)
+
+    @work(group="newer")
+    async def _loadNewer(self, ch) -> None:
+        try:
+            ml = self.query_one("#messages", MessageList)
+            views = ml.views()
+            if not views:
+                return
+            last = views[-1].message
+            msgs = [m async for m in ch.history(limit=HISTORY_PAGE, after=last, oldest_first=True)]
+            if ch is not self.current or not self.detached:
+                return
+            await ml.mount_all(self.buildWidgets(msgs, last))
+            if len(msgs) < HISTORY_PAGE:
+                self.setDetached(False)
+                self.cacheMessages(ch, [v.message for v in ml.views()])
+            extra = len(ml.views()) - MAX_MESSAGES
+            if extra > 0 and ml.selected < 0:
+                for v in ml.views()[:extra]:
+                    await v.remove()
+        except Exception:
+            log.exception("newer history")
+        finally:
+            self._loadingNewer = False
 
     def viewFor(self, message_id: int) -> Optional[MessageView]:
         for w in self.query_one("#messages", MessageList).views():
@@ -1608,7 +1663,13 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                 await self.current.send(out, **kw)
         except discord.HTTPException as e:
             self.notify(f"Send failed: {e.text or e}", severity="error", markup=False)
+            #put the edit or reply back too or enter again would post it as a new message
+            if editing:
+                self.startEdit(editing)
+            elif replyTo:
+                self.startReply(replyTo)
             inp.value = text
+            inp.cursor_position = len(text)
 
     #discord events
 
@@ -1652,6 +1713,11 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             cached.append(m)
             del cached[:-HISTORY_PAGE]
         mine = m.author.id == self.meId
+        if self.current is not None and ch.id == self.current.id and self.detached:
+            if not mine:
+                self.detachedNew += 1
+                self.setDetached(True)
+            return
         if self.current is not None and ch.id == self.current.id:
             ml = self.query_one("#messages", MessageList)
             atBottom = ml.scroll_y >= ml.max_scroll_y - 3
@@ -1672,7 +1738,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                     self.scheduleAck(ch, 2)
                 else:
                     self.localUnread[ch.id] = self.localUnread.get(ch.id, 0) + 1
-                    if isinstance(ch, PRIVATE) or mentionsMe(m, self.meId):
+                    if (isinstance(ch, PRIVATE) or mentionsMe(m, self.meId)) and not isMuted(ch):
                         self.desktopNotify(m)
             if isinstance(ch, PRIVATE):
                 self.moveDmToTop(ch)
@@ -1746,7 +1812,27 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             w.deleted = True
             w.rerender()
         elif w:
-            w.remove()
+            self.removeView(w)
+
+    #the next message gets its name header back if it was grouped under this one, and a date line left with nothing under it goes
+    def removeView(self, w: MessageView) -> None:
+        ml = self.query_one("#messages", MessageList)
+        kids = list(ml.children)
+        i = kids.index(w)
+        before = kids[i - 1] if i > 0 else None
+        after = kids[i + 1] if i + 1 < len(kids) else None
+        if isinstance(after, MessageView) and after.grouped:
+            prev = before.message if isinstance(before, MessageView) else None
+            if not canGroup(prev, after.message):
+                after.grouped = False
+                after.add_class("groupstart")
+                after.rerender()
+        if before is not None and "datesep" in before.classes and not isinstance(after, MessageView):
+            before.remove()
+        sel = ml.selected
+        w.remove()
+        if sel >= 0:
+            ml.call_after_refresh(ml.select, min(sel, len(ml.views()) - 1), False)
 
     def onDiscordAck(self, payload) -> None:
         ch = self.client.get_channel(payload.channel_id)

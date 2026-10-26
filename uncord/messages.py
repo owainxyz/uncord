@@ -348,6 +348,7 @@ class MessageList(VerticalScroll):
         Binding("p", "profile", "Profile", show=False),
         Binding("t", "thread", "Thread", show=False),
         Binding("P", "pin", "Pin", show=False),
+        Binding("J", "jump_reply", "Jump to reply", show=False),
         Binding("escape,i,slash", "back", "Back"),
     ]
 
@@ -360,6 +361,8 @@ class MessageList(VerticalScroll):
     def watch_scroll_y(self, old: float, new: float) -> None:
         super().watch_scroll_y(old, new)
         self.stickBottom = new >= self.max_scroll_y - 2
+        if self.stickBottom and new > old and getattr(self.app, "detached", False):
+            self.app.loadNewer()
 
     def views(self) -> List[MessageView]:
         return list(self.query(MessageView))
@@ -410,11 +413,17 @@ class MessageList(VerticalScroll):
             self.app.loadOlder()
             return
         if delta > 0 and self.selected >= len(self.views()) - 1:
-            self.action_back()
+            if self.app.detached:
+                self.app.loadNewer()
+            else:
+                self.action_back()
             return
         self.select(self.selected + delta)
 
     def action_edge(self, bottom: int) -> None:
+        if bottom and self.app.detached:
+            self.app.jumpToPresent()
+            return
         self.select(len(self.views()) - 1 if bottom else 0)
 
     def action_back(self) -> None:
@@ -483,6 +492,10 @@ class MessageList(VerticalScroll):
     def action_thread(self) -> None:
         if m := self._msg():
             self.app.openThreadOf(m)
+
+    def action_jump_reply(self) -> None:
+        if m := self._msg():
+            self.app.jumpToReply(m)
 
     def action_pin(self) -> None:
         if m := self._msg():

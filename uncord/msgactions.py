@@ -255,6 +255,8 @@ class MessageActionsMixin:
             acts.append(("view", "🖼 View media", "v"))
         if self.linksOf(m):
             acts.append(("open", "↗ Open link", "o"))
+        if m.reference is not None and m.reference.message_id and m.type == discord.MessageType.reply:
+            acts.append(("jumpreply", "↩ Jump to the replied message", "J"))
         acts += [("copy", "⧉ Copy text", "y"), ("link", "🔗 Copy message link", "c")]
         if not isinstance(m.channel, PRIVATE):
             get_thread = getattr(getattr(m.channel, "guild", None), "get_thread", None)
@@ -292,9 +294,10 @@ class MessageActionsMixin:
                 "delete": lambda: self.confirmDelete(m),
                 "view": lambda: self.viewMedia(m),
                 "open": lambda: self.openLinks(m),
-                "copy": lambda: self.copyText(m.content),
+                "copy": lambda: self.copyText(m.content or "\n".join(a.url for a in m.attachments)),
                 "link": lambda: self.copyText(m.jump_url),
                 "thread": lambda: self.openThreadOf(m),
+                "jumpreply": lambda: self.jumpToReply(m),
                 "pin": lambda: self.togglePin(m),
                 "dm": lambda: self.openDm(m.author),
                 "profile": lambda: self.showProfile(m.author),
@@ -371,6 +374,20 @@ class MessageActionsMixin:
             Confirm("Delete this message?", snippet(m.clean_content or "[attachment]", 120)),
             lambda yes: self.deleteMessage(m) if yes else None,
         )
+
+    def jumpToReply(self, m: discord.Message) -> None:
+        ref = m.reference
+        if ref is None or not ref.message_id:
+            self.notify("That message isn't a reply.")
+            return
+        ml = self.query_one("#messages")
+        for i, v in enumerate(ml.views()):
+            if v.message.id == ref.message_id:
+                ml.focus()
+                ml.call_after_refresh(ml.select, i)
+                return
+        ch = self.client.get_channel(ref.channel_id) if ref.channel_id else None
+        self.openChannel(ch or m.channel, around=discord.Object(ref.message_id))
 
     def openThreadOf(self, m: discord.Message) -> None:
         thread = getattr(m, "thread", None)
@@ -498,27 +515,40 @@ class MessageActionsMixin:
             return
         self._localReact(m, e, add=not mine)
 
-        #one at a time so fast clicks reach discord in the order they were made
+        #fast clicks collapse into whatever state you end on, then one at a time so discord sees them in order
         lock = self.__dict__.setdefault("_reactLock", asyncio.Lock())
+        pend = self.__dict__.setdefault("_reactPend", {})
+        k = (m.id, key)
+        if k in pend:
+            pend[k]["want"] = not mine
+            return
+        pend[k] = {"want": not mine, "server": mine}
 
         async def go():
+            await asyncio.sleep(0.35)
+            want = None
             try:
                 async with lock:
-                    if mine:
-                        await m.remove_reaction(e, self.client.user)
-                    else:
-                        await m.add_reaction(e)
-                        self.cfg.pushRecentEmoji(key)
+                    while pend[k]["want"] != pend[k]["server"]:
+                        want = pend[k]["want"]
+                        if want:
+                            await m.add_reaction(e)
+                            self.cfg.pushRecentEmoji(key)
+                        else:
+                            await m.remove_reaction(e, self.client.user)
+                        pend[k]["server"] = want
             except discord.HTTPException as ex:
-                log.warning("reaction %s failed: %s", "remove" if mine else "add", ex)
+                log.warning("reaction %s failed: %s", "add" if want else "remove", ex)
                 self.notify(
-                    f"Couldn't {'remove' if mine else 'add'} reaction: {ex.text or ex}",
+                    f"Couldn't {'add' if want else 'remove'} reaction: {ex.text or ex}",
                     severity="error",
                     markup=False,
                 )
             except Exception:
                 log.exception("reaction")
                 self.notify("Reaction failed (see log).", severity="error")
+            finally:
+                pend.pop(k, None)
             self.onReactionChange(m.channel.id, m.id, delay=0.6)
 
         spawn(go())
