@@ -7,6 +7,7 @@ import io
 import logging
 from dataclasses import dataclass
 from typing import Awaitable, Callable, List, Tuple
+from urllib.parse import urljoin, urlsplit
 
 import discord
 
@@ -21,6 +22,53 @@ VIDEO_EXT = (".mp4", ".webm", ".mov", ".mkv", ".m4v")
 
 THUMB_W, THUMB_MAX_H = 32, 8
 
+DISCORD_HOSTS = ("discordapp.com", "discordapp.net", "discord.com", "discord.media")
+MAX_FETCH = 64 << 20
+_session = None
+
+
+def discordHosted(url: str, anyHost: bool = False) -> bool:
+    try:
+        parts = urlsplit(url or "")
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower()
+    return parts.scheme == "https" and bool(host) and (
+        anyHost or any(host == d or host.endswith("." + d) for d in DISCORD_HOSTS))
+
+
+async def fetch(url: str, limit: int = MAX_FETCH, anyHost: bool = False) -> bytes:
+    import aiohttp
+
+    global _session
+    if _session is None or _session.closed:
+        _session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60, sock_read=20))
+    for _hop in range(4):
+        if not discordHosted(url, anyHost):
+            raise ValueError("not on discord's servers")
+        async with _session.get(url, allow_redirects=False) as r:
+            if r.status in (301, 302, 303, 307, 308) and r.headers.get("Location"):
+                url = urljoin(url, r.headers["Location"])
+                continue
+            if r.status != 200:
+                raise RuntimeError(f"http {r.status}")
+            if (r.content_length or 0) > limit:
+                raise ValueError("too big")
+            out = bytearray()
+            async for chunk in r.content.iter_chunked(1 << 16):
+                out += chunk
+                if len(out) > limit:
+                    raise ValueError("too big")
+            return bytes(out)
+    raise RuntimeError("too many redirects")
+
+
+async def closeSession() -> None:
+    global _session
+    if _session is not None and not _session.closed:
+        await _session.close()
+    _session = None
+
 
 @dataclass
 class MediaItem:
@@ -33,6 +81,7 @@ class MediaItem:
     emoji: bool = False
     small: bool = False
     alts: tuple = ()
+    trusted: bool = False
 
 
 def _alts(*urls) -> tuple:
@@ -107,7 +156,7 @@ def itemsOf(m: discord.Message) -> List[MediaItem]:
             out.append(
                 MediaItem(
                     e.provider.name if e.provider and e.provider.name else "gif",
-                    video.url,
+                    getattr(video, "proxy_url", None) or video.url,
                     _sized(still, src=thumb),
                     "gif",
                     page=e.url or "",
@@ -159,53 +208,6 @@ def itemsOf(m: discord.Message) -> List[MediaItem]:
     return out
 
 
-class MediaCache:
-
-    def __init__(self, fetch: Callable[[str], Awaitable[bytes]], size: int = 300) -> None:
-        self.fetch = fetch
-        self.images: "collections.OrderedDict[str, object]" = collections.OrderedDict()
-        self.size = size
-        self.sem = asyncio.Semaphore(4)
-        self.inflight: dict = {}
-
-    async def thumb(self, url: str):
-        if url in self.images:
-            self.images.move_to_end(url)
-            return self.images[url]
-        if url in self.inflight:
-            return await self.inflight[url]
-        fut = asyncio.get_running_loop().create_future()
-        self.inflight[url] = fut
-        img = None
-        try:
-            async with self.sem:
-                data = await self.fetch(url)
-            img = await asyncio.to_thread(_decodeFirst, data)
-        except Exception:
-            log.debug("thumb failed %s", url, exc_info=True)
-        finally:
-            self.inflight.pop(url, None)
-            fut.set_result(img)
-        if img is not None:
-            self.images[url] = img
-            while len(self.images) > self.size:
-                self.images.popitem(last=False)
-        return img
-
-
-def _decodeFirst(data: bytes):
-    from PIL import Image as PILImage
-
-    img = PILImage.open(io.BytesIO(data))
-    try:
-        img.seek(0)
-    except Exception:
-        pass
-    img = img.convert("RGB")
-    img.thumbnail((480, 360))
-    return img
-
-
 def thin(frames: list, limit: int) -> list:
     if len(frames) <= limit:
         return frames
@@ -253,9 +255,9 @@ class FrameCache:
             async with self.sem:
                 plain = item.url.lower().split("?")[0]
                 if animate and item.kind == "gif" and plain.endswith(VIDEO_EXT):
-                    frames = await videoFrames(item.url, fps=12, width=448, seconds=8)
+                    frames = await videoFrames(item.url, fps=12, width=448, seconds=8, anyHost=item.trusted)
                 elif animate and item.kind in ("gif", "sticker"):
-                    data = await self._fetchAny(item.url, *item.alts)
+                    data = await (fetch(item.url, anyHost=True) if item.trusted else self._fetchAny(item.url, *item.alts))
                     frames = await asyncio.to_thread(gifFrames, data, 240, 512)
                 else:
                     data = await self._fetchAny(item.thumb, *item.alts)
@@ -309,15 +311,19 @@ def gifFrames(data: bytes, maxFrames: int = 300, maxSide: int = 0) -> List[Tuple
 
 
 async def videoFrames(
-    url: str, fps: int = 12, width: int = 480, seconds: int = 20
+    url: str, fps: int = 12, width: int = 480, seconds: int = 20, anyHost: bool = False
 ) -> List[Tuple[object, float]]:
     if not FFMPEG:
         raise RuntimeError("ffmpeg not available")
+    if not discordHosted(url, anyHost):
+        raise ValueError("not on discord's servers")
     proc = await asyncio.create_subprocess_exec(
         FFMPEG,
         "-hide_banner",
         "-loglevel",
         "error",
+        "-protocol_whitelist",
+        "https,tls,tcp",
         "-t",
         str(seconds),
         "-i",
@@ -349,7 +355,10 @@ def _ppmFrames(data: bytes, dur: float) -> List[Tuple[object, float]]:
 
 
 def playExternal(url: str) -> bool:
-    if not MPV:
+    from .safety import safeUrl
+
+    url = safeUrl(url)
+    if not MPV or url is None:
         return False
     spawn(
         asyncio.create_subprocess_exec(
@@ -357,6 +366,7 @@ def playExternal(url: str) -> bool:
             "--really-quiet",
             "--loop-file=inf" if url.lower().split("?")[0].endswith(".gif") else "--keep-open=no",
             "--force-window=immediate",
+            "--",
             url,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,

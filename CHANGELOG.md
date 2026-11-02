@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.80 (2026-11-02)
+
+- Drafts: whatever you've typed, the message you're replying to and any attached files stay with that chat when you switch away, and come back when you return. Typed drafts are kept when you quit too. Before, the text and files followed you into the next chat and could get sent to the wrong place
+- Images, GIFs, videos and voice messages only load from Discord's own servers. A bot embed pointing at some other site can't get your IP address any more, as uncord uses Discord's image proxy instead, like the official app
+- Downloads stop at 64 MB, so a huge file can't eat your memory
+- ffmpeg only opens https links, so a crafted video or playlist can't make it read files on your computer
+- Links handed to mpv can't be read as mpv options
+- The frame file for streams in Kitty is created only readable by you and never follows a symlink someone else left in /dev/shm
+
 ## 0.77 (2026-10-26)
 
 - Jumping to an old message (from pins, search or a reply) no longer strands you: scroll or press ↓ at the bottom to load newer messages, and G or the bar under the chat takes you back to the present. New messages that arrive meanwhile are counted on that bar instead of being stuck under old history

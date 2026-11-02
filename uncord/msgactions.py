@@ -43,7 +43,7 @@ class MessageActionsMixin:
         self.push_screen(ProfileScreen(u, self.client, guild), done)
 
     async def fetchCdn(self, url: str) -> bytes:
-        return await self.client.http.get_from_cdn(url)
+        return await media.fetch(url)
 
     #only http and https go to the browser, anything else gets copied so you can look at it first
     def openExternal(self, url: str, confirmed: bool = False) -> None:
@@ -640,7 +640,7 @@ class MessageActionsMixin:
 
         async def framesFor(g):
             src = g.get("src") or g["url"]
-            item = media.MediaItem(g.get("title") or "gif", src, src, "gif")
+            item = media.MediaItem(g.get("title") or "gif", src, src, "gif", trusted=True)
             return await self.frameCache.frames(item, animate=True)
 
         def done(g) -> None:

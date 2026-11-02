@@ -272,6 +272,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self._watchOpus: dict = {}
         self._errorsSeen: Dict[str, float] = {}
         self.attachments: list = []  #files waiting for the next message
+        self.drafts: dict = {}
         self.msgCache: "collections.OrderedDict[int, list]" = collections.OrderedDict()
         self._micWarned = False
         self._lastBar = None
@@ -1136,6 +1137,11 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             self.forumPicker(ch)
             return
         self.current = ch
+        draft = None
+        if prev is None or prev.id != ch.id:
+            if prev is not None:
+                self.stashDraft(prev)
+            draft = self.takeDraft(ch)
         self.clearUnread(ch)
         if prev is not None and prev.id != ch.id:
             self.relabel(prev)
@@ -1156,6 +1162,8 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.cfg.save()
         self.typing.clear()
         self.cancelCompose()
+        if draft:
+            self.applyDraft(ch, draft)
         self.clearSuggestions()
         self.query_one("#title", Static).update(channelTitle(ch))
         inp = self.query_one("#input", ChatInput)
@@ -1165,6 +1173,40 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.loadHistory(ch, around)
         self.refreshMembers()
         self.refreshTitleRight()
+
+    def stashDraft(self, ch) -> None:
+        inp = self.query_one("#input", ChatInput)
+        text = "" if self.editing else inp.value
+        reply, files = self.replyTo, self.attachments
+        saved = dict(self.cfg.get("drafts", {}))
+        saved.pop(str(ch.id), None)
+        if text.strip() or reply is not None or files:
+            self.drafts[ch.id] = (text, reply, files)
+            if text.strip():
+                saved[str(ch.id)] = text[:4000]
+        else:
+            self.drafts.pop(ch.id, None)
+        self.cfg["drafts"] = dict(list(saved.items())[-100:])
+        self.attachments = []
+        self.renderAttachments()
+        inp.value = ""
+
+    def takeDraft(self, ch):
+        saved = dict(self.cfg.get("drafts", {}))
+        text = saved.pop(str(ch.id), "")
+        if text:
+            self.cfg["drafts"] = saved
+        return self.drafts.pop(ch.id, None) or ((text, None, []) if text else None)
+
+    def applyDraft(self, ch, draft) -> None:
+        text, reply, files = draft
+        inp = self.query_one("#input", ChatInput)
+        inp.value = text
+        inp.cursor_position = len(text)
+        self.attachments = list(files)
+        self.renderAttachments()
+        if reply is not None and getattr(reply.channel, "id", None) == ch.id:
+            self.startReply(reply)
 
     @staticmethod
     def _sig(msgs) -> list:
@@ -2026,6 +2068,12 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             log.debug("rich presence update", exc_info=True)
 
     async def action_quit(self) -> None:
+        if self.current is not None:
+            try:
+                self.stashDraft(self.current)
+                self.cfg.save()
+            except Exception:
+                log.debug("saving draft", exc_info=True)
         if self.rpc is not None:
             self.rpc.stop()
         if self.vc is not None:
@@ -2035,4 +2083,5 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         except Exception:
             pass
         await cancelAll()
+        await media.closeSession()
         self.exit()

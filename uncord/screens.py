@@ -262,7 +262,15 @@ class ImageScreen(ModalScreen):
             if item.kind in ("gif", "video") and plain.endswith(media.VIDEO_EXT):
                 frames = await media.videoFrames(item.url, fps=15, width=960, seconds=20)
             else:
-                data = await self.fetch(item.url)
+                data, err = None, None
+                for u in dict.fromkeys(x for x in (item.url, *item.alts, item.thumb) if x):
+                    try:
+                        data = await self.fetch(u)
+                        break
+                    except Exception as e:
+                        err = e
+                if data is None:
+                    raise err or RuntimeError("no url")
                 frames = await asyncio.to_thread(media.gifFrames, data, 300, 1600)
         except Exception as e:
             log.debug("viewer load failed", exc_info=True)

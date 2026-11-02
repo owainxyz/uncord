@@ -152,13 +152,17 @@ class Player:
         await self.stop()
         if was == url:
             return False
+        from .media import discordHosted
+
+        if not discordHosted(url):
+            raise RuntimeError("that audio isn't on discord's servers")
         if MPV:
-            cmd = [MPV, "--no-video", "--really-quiet", "--audio-client-name=uncord", url]
+            cmd = [MPV, "--no-video", "--really-quiet", "--audio-client-name=uncord", "--", url]
         elif FFMPEG:
             cmd = [
                 "sh",
                 "-c",
-                f'"{FFMPEG}" -loglevel error -i "$0" -f s16le -ar 48000 -ac 2 - | '
+                f'"{FFMPEG}" -loglevel error -protocol_whitelist https,tls,tcp -i "$0" -f s16le -ar 48000 -ac 2 - | '
                 "pw-play --raw --format s16 --rate 48000 --channels 2 -",
                 url,
             ]

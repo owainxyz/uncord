@@ -101,7 +101,8 @@ class LiveSixel(Widget, can_focus=False):
         keys = dict(a="T", f=24, s=w, v=h, i=self._kittyId, p=1, c=cols, r=rows, C=1, q=2)
         if LOCAL:
             path = f"/dev/shm/tty-graphics-protocol-uncord-{os.getpid()}-{self._kittyId}.rgb"
-            with open(path, "wb") as f:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+            with os.fdopen(fd, "wb") as f:
                 f.write(data)
             body = sixelview.kittyMessage(base64.b64encode(path.encode()).decode(), t="t", **keys)
         else:

@@ -146,6 +146,7 @@ Settings live in `~/.config/uncord/config.json` and the log in `~/.cache/uncord/
 - A token or env file that's a symlink, belongs to another user or isn't a plain file is refused. Tokens with spaces or odd characters are refused too.
 - `uncord --logout` overwrites the token file before deleting it.
 - The Rich Presence socket only accepts your own apps and drops oversized or malformed messages.
+- Images, videos and voice messages only load from Discord's servers (through its image proxy), so a link in an embed can't see your IP. Downloads are capped at 64 MB, and ffmpeg and mpv only get https links.
 
 ## Troubleshooting
 
