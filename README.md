@@ -9,54 +9,38 @@ Questions or ideas? Join the [uncord Discord server](https://discord.gg/fubfK8C6
 
 ## Contents
 
-1. [Features](#features)
-2. [Install](#install)
-   - [Requirements](#requirements)
-   - [Install script](#install-script)
-   - [Nix](#nix)
-   - [By hand](#by-hand)
-   - [Updating and uninstalling](#updating-and-uninstalling)
-3. [Getting started](#getting-started)
-   - [Logging in](#logging-in)
-   - [Files](#files)
-   - [Environment variables](#environment-variables)
-4. [Using uncord](#using-uncord)
-   - [Keys](#keys)
-   - [Voice, video and screen sharing](#voice-video-and-screen-sharing)
-   - [Settings and plugins](#settings-and-plugins)
-5. [Privacy and security](#privacy-and-security)
-6. [Troubleshooting](#troubleshooting)
-7. [For developers](#for-developers)
-8. [Todo](#todo)
-9. [Credits and license](#credits-and-license)
+1. [What it does](#what-it-does)
+2. [Installing](#installing)
+3. [Logging in](#logging-in)
+4. [Getting around](#getting-around)
+5. [Reading and sending messages](#reading-and-sending-messages)
+6. [Voice and video calls](#voice-and-video-calls)
+7. [Screen sharing](#screen-sharing)
+8. [Settings](#settings)
+9. [Plugins](#plugins)
+10. [Slash commands](#slash-commands)
+11. [Files and environment variables](#files-and-environment-variables)
+12. [Privacy and security](#privacy-and-security)
+13. [Troubleshooting](#troubleshooting)
+14. [For developers](#for-developers)
 
-## Features
+## What it does
 
-| | |
-| --- | --- |
-| **Chat** | servers, DMs, group DMs, threads and forums. Replies, edits, reactions, pins, search, and unread and mention counts |
-| **Looks like Discord** | markdown and highlighted code, embeds, server tags, blurple APP badges, 🖥 📱 🌐 device icons and a members list |
-| **Images** | pictures, GIFs, stickers and custom emoji. Sharpest in Kitty and Ghostty, sixel in foot, WezTerm, Konsole and others |
-| **Voice and video** | per-person volume, automatic gain and mic sensitivity, your camera on or other people's cameras in view |
-| **Screen sharing** | go live with one key, or watch someone else's stream right in the terminal |
-| **Extras** | an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games, and 25 plugins such as MessageLogger and ClearURLs |
-| **Encryption** | calls and streams use Discord's DAVE end-to-end encryption, like the official app |
-| **Fast** | the busiest code is compiled: image and video packets in C, voice mixing and levels in C++ |
+uncord covers almost everything you'd do in the desktop app. You get servers, DMs, group DMs, threads and forums, with replies, edits, reactions, pins, search, and unread and mention counts. Messages render with markdown, highlighted code, embeds, server tags and APP badges, and the members list shows which device each person is on.
 
-## Install
+Pictures, GIFs, stickers and custom emoji are drawn right in the terminal. They look sharpest in Kitty and Ghostty, and terminals with sixel support (foot, WezTerm, Konsole and others) work too.
 
-### Requirements
+You can join voice channels and call people. Volume can be set per person, mic gain is automatic and you can turn your camera on. You can go live with one key or watch someone else's stream in the terminal. Calls and streams use Discord's DAVE end-to-end encryption, the same as the official app.
 
-- Linux (x86_64 or ARM, glibc or musl) with Python 3.10 or newer
-- **To build:** gcc, g++ and the Python headers
-- **For voice:** ffmpeg, libopus and PipeWire
-- **Optional:** chafa (nicer images), mpv (pop-out video), wl-clipboard or xclip (pasting images), a notification daemon, gpu-screen-recorder (screen sharing and camera)
+It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 25 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Image and video packets are handled in C, and voice mixing and levels in C++.
 
-The install script and Nix sort these out for you.
+## Installing
 
-### Install script
+uncord runs on Linux (x86_64 or ARM, glibc or musl) and needs Python 3.10 or newer.
 
-Works on Debian, Ubuntu, Fedora, Arch, openSUSE, Void, Alpine and Gentoo.
+### With the install script
+
+This is the easiest way, and it works on Debian, Ubuntu, Fedora, Arch, openSUSE, Void, Alpine and Gentoo:
 
 ```sh
 git clone https://github.com/owainxyz/uncord.git
@@ -64,27 +48,22 @@ cd uncord
 ./install.sh
 ```
 
-It installs the system packages with your package manager (it asks first), puts uncord in `~/.local/share/uncord`, adds an `uncord` command and an app menu entry, then runs `uncord --doctor`.
+The script asks before using your package manager to install the system packages uncord needs. It then puts uncord in `~/.local/share/uncord` and adds an `uncord` command and an app menu entry. At the end it runs `uncord --doctor` so you can see that everything was found.
 
-| Flag | Does |
-| --- | --- |
-| `-y` | install without asking |
-| `--no-system` | skip system packages |
-| `--dry-run` | show what it would do |
-| `--uninstall` | remove uncord (keeps your login and settings) |
+Pass `-y` to skip the questions, `--no-system` if you'd rather install the system packages yourself, or `--dry-run` to see what it would do without changing anything.
 
-### Nix
+### With Nix
 
 ```sh
-nix run github:owainxyz/uncord              # try it
+nix run github:owainxyz/uncord              # try it without installing
 nix profile install github:owainxyz/uncord  # install it
 ```
 
-On NixOS, add the flake to your system with `inputs.uncord.url = "github:owainxyz/uncord";`, then add `uncord.packages.${system}.default` to your packages. uncord isn't in nixpkgs yet, so `nix-env -iA nixpkgs.uncord` won't find it.
+On NixOS, add the flake to your inputs with `inputs.uncord.url = "github:owainxyz/uncord";`, then put `uncord.packages.${system}.default` in your packages. uncord isn't in nixpkgs yet, so `nix-env -iA nixpkgs.uncord` won't find it.
 
 ### By hand
 
-Install the [requirements](#requirements) first, then:
+First install the build tools: gcc, g++ and your distro's Python headers (usually `python3-dev` or `python3-devel`). For voice you also need ffmpeg, libopus and PipeWire. Then:
 
 ```sh
 python3 -m venv ~/.local/share/uncord/venv
@@ -92,128 +71,198 @@ python3 -m venv ~/.local/share/uncord/venv
 ~/.local/share/uncord/venv/bin/uncord
 ```
 
-### Updating and uninstalling
+These extras are optional, and each one switches something on:
 
-- **Update:** `uncord --update`. uncord also tells you when an update is out.
-- **Uninstall:** `./install.sh --uninstall`. Your login and settings stay in `~/.config/uncord`.
+- **chafa** draws better images in terminals without kitty graphics.
+- **mpv** pops videos and streams out into their own window.
+- **wl-clipboard** (Wayland) or **xclip** (X11) lets you paste images into messages.
+- **a notification daemon** gives you desktop notifications.
+- **gpu-screen-recorder** is needed for screen sharing and your camera.
 
-## Getting started
+### Updating and removing
 
-### Logging in
+Run `uncord --update` to get the latest version. uncord also tells you when a new one is out.
 
-The first time you run `uncord` it asks how to log in:
+To remove it, run `./install.sh --uninstall` from the folder you cloned. Your login and settings in `~/.config/uncord` are kept in case you come back, so delete that folder yourself if you want them gone.
 
-1. **QR code:** scan it with the Discord app on your phone (Settings → Scan QR Code). No password needed.
-2. **Token:** paste one if you already have it.
+## Logging in
 
-| Command | Does |
-| --- | --- |
-| `uncord --login` | log in again |
-| `uncord --logout` | forget your login |
-| `uncord --doctor` | check what uncord found and what's missing |
-| `uncord --env` | list every environment variable |
+The first time you run `uncord` it asks how you want to log in. The easiest way is the QR code: open the Discord app on your phone, go to Settings → Scan QR Code and point it at your terminal. You don't need your password for this. If you already have a token you can paste it in instead.
 
-### Files
+Your login is saved to `~/.config/uncord/token`, and only your user can read it. If you want to switch accounts, run `uncord --login`. To forget the login completely, run `uncord --logout`.
 
-All of these are readable only by you.
+## Getting around
 
-| Path | What's in it |
-| --- | --- |
-| `~/.config/uncord/token` | your login |
-| `~/.config/uncord/config.json` | settings |
-| `~/.config/uncord/env` | optional environment variables |
-| `~/.cache/uncord/uncord.log` | the log |
+The screen is split the same way as Discord's. Your servers and DMs are down the left, the chat is in the middle and the members list is on the right. When you start uncord it opens the last chat you were in.
 
-### Environment variables
+The quickest way to get anywhere is **Ctrl+K**. Start typing a person, DM, group, channel, thread or server and press Enter. You can also:
 
-Instead of the saved token you can set `UNCORD_TOKEN` (or `DISCORD_TOKEN`), or `UNCORD_TOKEN_CMD` to a command that prints it, like `pass show discord/token`. Folders, the log, theme, voice gate and tool paths have variables too. `uncord --env` lists them all.
+- press **Alt+↑** and **Alt+↓** to step through the channels in the current server, or **Alt+Shift+↑/↓** to jump only to channels with unread messages
+- press **Ctrl+Alt+↑/↓** to switch servers, and **Alt+←/→** to go back and forward through chats you've visited
+- press **Tab** or **Esc** to move between the message box and the sidebar
+- press **Ctrl+B** to hide the sidebar and **F2** to show or hide the members list
 
-They can also go in `~/.config/uncord/env` as `KEY=value` lines (see `uncord.env.example`). Real environment variables win over the file, and only uncord's own keys are read from it.
+In the sidebar, clicking a server (or pressing Enter on it) takes you back to where you left off there. Space folds folders and categories. Right-click a server to mark it all as read.
 
-## Using uncord
+**F4** opens your inbox of unread messages and mentions. **Ctrl+U** opens your friends list and **Ctrl+S** sets your status. **F1** shows every key in uncord.
 
-### Keys
+## Reading and sending messages
 
-Press **F1** in uncord for the full list. Slash commands work too: type `/` to see them, including bot commands.
+Type in the box at the bottom and press Enter to send. While you type, `@name`, `#channel` and `:emoji:` all autocomplete, and Tab or Enter picks the suggestion. Something like `:sob:` turns into 😭 as you type, and server emoji like `:pog:` are swapped in when the message is sent.
 
-| Key | Does |
-| --- | --- |
-| **Moving around** | |
-| Ctrl+K | jump to any chat, person or server |
-| Tab / Esc | move between the message box and the sidebar |
-| Alt+↑ / Alt+↓ | previous / next channel |
-| Ctrl+B / F2 | sidebar / members list |
-| F3 or ⚙ | settings |
-| F4 | inbox |
-| **Messages** | |
-| ↑ in an empty message box | select messages: `r` reply, `e` edit, `d` delete, `+` react |
-| Ctrl+G / Ctrl+E / Ctrl+T | GIFs, emoji, stickers |
-| Ctrl+O | attach a file or record a voice message |
-| Ctrl+F | search |
-| **Calls** | |
-| F5 / F6 / F7 / F8 | call, mute, deafen, leave |
-| F9 | voice & video settings |
-| F10 / F11 / F12 | share screen, watch a stream, camera |
+The buttons next to the message box each have a shortcut. **Ctrl+G** opens GIFs (favourites, trending and search), **Ctrl+E** the emoji picker and **Ctrl+T** stickers. **Ctrl+R** records a voice message: press it again to send or Esc to cancel. **Ctrl+O** attaches a file.
 
-### Voice, video and screen sharing
+To act on a message that's already been sent, press **↑** in an empty message box. This lets you move through messages, and then:
 
-Click a voice channel to join, or press F5 in a DM to call. Click someone's name in the call bar to change their volume. Devices, volume and mic sensitivity are in **Settings → Voice & video** (F9).
+- **r** replies, **e** edits, **d** deletes and **P** pins or unpins it
+- **+** adds a reaction, **-** removes one, and **1–9** quickly toggles one of your recent emoji
+- **v** shows an image, sticker or emoji full size, **o** opens a link and **s** reveals spoilers
+- **y** copies the text and **c** copies a link to the message
+- **t** opens its thread, **m** DMs the author and **p** shows their profile
+- **J** jumps to the message it replied to, **g** and **G** go to the top and bottom, and **Esc** goes back
 
-| | |
-| --- | --- |
-| **Share your screen (F10)** | needs `gpu-screen-recorder`. On GNOME or KDE Wayland, pick "portal". Change the quality with `/share 1080p60` |
-| **Camera (F12)** | turns your webcam on in the call |
-| **Watch (F11)** | when someone goes live their name gets a red LIVE tag. In the viewer, `+`/`-` resize, `f` is full size, `p` opens it in mpv, `m` mutes and `esc` closes |
+Pressing ↑ at the top of a chat loads older messages. After you've jumped back in time, ↓ at the bottom loads newer ones, and **G** (or clicking the bar under the chat) takes you back to the present. You can click reactions to add or remove yours, and click images and GIFs to enlarge them.
 
-### Settings and plugins
+**Ctrl+F** searches messages, and Discord's filters work here too, for example `from:name`, `in:channel` and `has:link`, `has:image` or `has:file`.
 
-Open settings with the ⚙ button by your name, F3 or `/settings`. Changes apply straight away.
+## Voice and video calls
 
-| Tab | What's there |
-| --- | --- |
-| Appearance | theme, line spacing, images, layout, stream size |
-| Notifications | desktop notifications, message previews |
-| Chat | DM list size, translation language, file picker |
-| Voice & video | devices, volumes, mic sensitivity, call sounds, screen share quality, camera |
-| Privacy | link safety, Rich Presence, log out |
-| Plugins | 25 Vencord-style extras, searchable |
-| About | version, updates, what's installed |
+Click a 🔊 voice channel to join it. You stay in your current text chat, and right-clicking the channel opens its text chat instead. In a DM or group, **F5** starts a call or answers one.
+
+While you're in a call, **F6** mutes, **F7** deafens and **F8** leaves. The panel in the bottom left has the same buttons. Right-click someone, or click their name in the call strip, to set their volume anywhere from 0 to 200%, or to mute them just for you. **F12** turns your camera on and off.
+
+**F9** opens the voice settings, where you choose your mic and speakers, set the volume and mic sensitivity and turn call sounds on or off. You can also do this from the message box. `/vad <n>` sets mic sensitivity (0 is an open mic), `/vol <0-300>` sets output volume and `/sfx on|off` toggles call sounds. If audio is acting up, `/voicestats` shows what's going in and out.
+
+## Screen sharing
+
+To share your screen, press **F10** in a call. This needs `gpu-screen-recorder`, and on GNOME or KDE Wayland you should pick the "portal" option. The default quality can be changed with `/share 720p30`, `1080p30`, `1080p60` or `1440p60`, and `/share stop` ends the stream.
+
+When someone goes live, a red **LIVE** tag appears next to their name. Click it or press **F11** to watch. In the viewer:
+
+- **+** and **-** change the size and **f** makes it full size
+- **p** pops it out into mpv
+- **m** mutes the stream audio
+- **Esc** closes it
+
+You can watch someone's camera the same way, by clicking the 📷 next to their name.
+
+## Settings
+
+Open settings with the ⚙ button by your name, **F3** or `/settings`. Changes take effect straight away.
+
+- **Appearance** covers the theme, line spacing, whether images show, the layout and how big streams are.
+- **Notifications** controls desktop notifications and whether they show message previews.
+- **Chat** has the DM list size, the language for translations and which file picker to use.
+- **Voice & video** has your devices, volumes, mic sensitivity, call sounds, screen share quality and camera.
+- **Privacy** covers link safety, Rich Presence and logging out.
+- **Plugins** switches the [plugins](#plugins) on and off.
+- **About** shows your version and what uncord found on your system, and lets you check for updates.
+
+## Plugins
+
+uncord has 25 small extras in the spirit of Vencord plugins. You can turn them on and off in **Settings → Plugins** or with `/plugins`.
+
+These are on to begin with:
+
+- **MessageLogger** keeps deleted messages and shows what edited ones said before.
+- **PlatformIndicators** shows 🖥 📱 🌐 for the devices people are on.
+- **TypingIndicator** puts ✎ next to channels and DMs where someone is typing.
+- **CallTimer** shows how long you've been in a call.
+- **ClearURLs** strips tracking junk (utm, fbclid, si and so on) from links you send.
+- **FakeNitro** sends emoji you can't use in a server as image links instead of failing.
+- **RelationshipNotifier** tells you when someone unfriends you or sends a friend request.
+- **RichPresence** lets games and apps on your PC set your activity, like the desktop app does. Restart uncord after changing it.
+- **Translate**, **ViewRaw**, **WhoReacted** and **ReverseImageSearch** add options to the message menu (Enter or right-click on a message).
+- **PinDMs** lets you pin DMs to the top of the list by right-clicking them.
+- **MemberCount** shows the online and total members in the title bar.
+- **ShowConnections** shows someone's linked accounts, such as Steam or Spotify, on their profile.
+- **ReplyTimestamp** shows when the message you're replying to was sent.
+- **ValidReply** fetches replied-to messages that aren't loaded instead of saying they were deleted.
+- **Unindent** trims the extra indent from code blocks.
+
+These are off to begin with:
+
+- **ShowMeYourName** shows @username next to nicknames.
+- **NoReplyMention** makes your replies not ping the person you reply to.
+- **SilentTyping** hides that you're typing.
+- **NoBlockedMessages** hides messages from blocked people completely.
+- **ShowHiddenChannels** lists channels you can't read, with a 🔒.
+- **AnonymiseFileNames** uploads files with random names.
+- **Moyai** 🗿
+
+## Slash commands
+
+Type `/` in the message box to see every command, including the ones from bots in the current server. To send a message that starts with a slash, begin it with `//`.
+
+Commands for **chatting**:
+
+- `/dm name` and `/group a, b` start a DM or a group.
+- `/friends`, `/members` and `/whois name` show your friends, the members list or someone's profile.
+- `/search` searches messages and `/pins` lists pinned messages.
+- `/upload ~/file [caption]` sends a file. `/sticker` and `/emoji` open the pickers.
+- `/read` marks the current chat as read and `/readall` marks everything as read.
+- `/nick name` sets your nickname, and `/status` sets your status.
+
+Commands for **calls**:
+
+- `/join`, `/answer`, `/decline` and `/leave` join or answer calls, and `/mute` and `/deafen` work like F6 and F7.
+- `/share`, `/watch` and `/camera` are covered in [screen sharing](#screen-sharing) and [calls](#voice-and-video-calls).
+
+Commands for **uncord itself**:
+
+- `/settings`, `/plugins` and `/theme` open settings, plugins or the theme picker.
+- `/media on|off` shows or hides images.
+- `/quit` exits.
+
+## Files and environment variables
+
+uncord keeps its files in the usual places, and each one is readable only by you:
+
+- `~/.config/uncord/token` holds your login.
+- `~/.config/uncord/config.json` holds your settings.
+- `~/.config/uncord/env` is an optional file for environment variables.
+- `~/.cache/uncord/uncord.log` is the log, which is useful when something goes wrong.
+
+You don't have to keep your token on disk. Set `UNCORD_TOKEN` (or `DISCORD_TOKEN`) to the token itself, or set `UNCORD_TOKEN_CMD` to a command that prints it, such as `pass show discord/token`.
+
+Folders, the log, the theme, the voice gate and the paths to tools like ffmpeg all have variables too, and `uncord --env` lists them all. Instead of exporting them in your shell, you can put them in `~/.config/uncord/env` as `KEY=value` lines. `uncord.env.example` in the repo is a starting point. Variables set in the real environment win over the file, and uncord only reads its own keys from it.
 
 ## Privacy and security
 
-**Your terminal**
-- Messages, names and embeds can't send escape sequences to your terminal (things like clipboard writes or title changes). They're stripped before anything is drawn.
+Anything in a message, name or embed that would control your terminal (escape sequences that write to your clipboard or change the window title, for example) is stripped out before it's drawn.
 
-**Links and media**
-- Masked links show where they really go, and a ⚠ when the text claims a different site.
-- Only http and https links open in your browser. You can have uncord ask first.
-- Images, videos and voice messages only load from Discord's servers (through its image proxy), so a link in an embed can't see your IP. Downloads are capped at 64 MB, and ffmpeg and mpv only get https links.
+Masked links show where they really go, with a ⚠ if the text claims to be a different site. Only http and https links open in your browser, and you can have uncord ask before it opens anything. Images, videos and voice messages only ever load through Discord's own servers, so a link in an embed can't get your IP address. Downloads are capped at 64 MB.
 
-**Your token**
-- It never goes into the log, not even inside error tracebacks.
-- It's removed from uncord's environment once read, so ffmpeg, mpv, the voice helpers and anything else uncord starts never see it.
-- A token or env file that's a symlink, belongs to another user or isn't a plain file is refused. Tokens with spaces or odd characters are refused too.
-- `uncord --logout` overwrites the token file before deleting it.
+Your token is treated carefully:
 
-**Rich Presence**
-- The socket only accepts your own apps and drops oversized or malformed messages.
+- it never ends up in the log, even inside an error traceback
+- it's removed from uncord's environment once it's been read, so ffmpeg, mpv and anything else uncord starts can't see it
+- uncord refuses a token or env file that is a symlink, belongs to someone else or isn't a plain file
+- `uncord --logout` overwrites the token file before deleting it
 
-See [SECURITY.md](SECURITY.md) to report a problem.
+The Rich Presence socket only accepts connections from your own apps, and it drops messages that are too big or malformed.
+
+To report a security problem, see [SECURITY.md](SECURITY.md).
 
 ## Troubleshooting
 
-Run `uncord --doctor` first. It shows what uncord found and what's missing.
+Start with `uncord --doctor`. It lists what uncord found on your system and what's missing.
 
-| Problem | Fix |
-| --- | --- |
-| `uncord: command not found` right after installing | open a new terminal. The installer puts `~/.local/bin` on your PATH, but terminals that were already open don't see it. `~/.local/bin/uncord` works straight away |
-| Blocky images | your terminal can't draw images. Try Kitty, Ghostty, foot, WezTerm or Konsole |
-| No sound or nobody hears you | pick the right devices in Settings → Voice & video. `/voicestats` shows what the audio is doing |
-| Screen share fails | check `gpu-screen-recorder --list-monitors`, or use the portal option |
-| uncord can't find a tool | point it there with `UNCORD_FFMPEG`, `UNCORD_OPUS`, `UNCORD_CHAFA` or `UNCORD_GSR` |
-| Anything else | check `~/.cache/uncord/uncord.log`, or ask in the [Discord server](https://discord.gg/fubfK8C6Cm) |
+**`uncord: command not found` right after installing.** Open a new terminal. The installer adds `~/.local/bin` to your PATH, but terminals that were already open won't see the change. Until then, `~/.local/bin/uncord` works.
+
+**Images look blocky.** Your terminal can't draw real images. Try Kitty, Ghostty, foot, WezTerm or Konsole, or install chafa for better fallback images.
+
+**No sound, or nobody can hear you.** Check that the right mic and speakers are picked in Settings → Voice & video. `/voicestats` shows whether audio is coming in and going out, and what your mic level is.
+
+**Screen sharing fails.** Run `gpu-screen-recorder --list-monitors` to check that it can see your screens. On GNOME or KDE Wayland, use the portal option.
+
+**uncord can't find ffmpeg, opus, chafa or gpu-screen-recorder.** If they're installed somewhere unusual, set `UNCORD_FFMPEG`, `UNCORD_OPUS`, `UNCORD_CHAFA` or `UNCORD_GSR` to the path.
+
+**Anything else.** Look in `~/.cache/uncord/uncord.log`, or ask in the [Discord server](https://discord.gg/fubfK8C6Cm).
 
 ## For developers
+
+To set up a development copy:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e .
@@ -221,27 +270,20 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/python -m uncord
 ```
 
-| Path | What's in it |
-| --- | --- |
-| `uncord/app.py` | main window, sidebar, chat and Discord events |
-| `uncord/settings.py` | the settings tabs |
-| `uncord/voice.py`, `golive.py`, `rtpvideo.py` | calls, screen sharing and video |
-| `uncord/fmt.py`, `messages.py` | turning messages into terminal text |
-| `uncord/safety.py` | escape stripping, link checks, log scrubbing |
-| `uncord/_native.c` | C: sixel encoding, kitty image chunks, ppm frames, h264 splitting |
-| `uncord/_dsp.cpp` | C++: voice volume, mixing, levels and call sounds |
-| `uncord/_rtp.cpp` | C++: video depacketizers, jitter buffer, rtcp and outgoing packets |
-| `packaging/` | AUR and Nix packages |
+uncord is built on [discord.py-self](https://github.com/dolfies/discord.py-self) and [Textual](https://github.com/Textualize/textual). Most of the app is in `uncord/app.py`: the main window, the sidebar, the chat and the Discord event handlers. Message rendering is in `fmt.py` and `messages.py`, and the settings screen is `settings.py`. Calls, screen sharing and video are in `voice.py`, `golive.py` and `rtpvideo.py`. `safety.py` handles escape stripping, link checks and log scrubbing.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+There are three compiled extensions:
 
-## Todo
+- `_native.c` handles sixel encoding, kitty image chunks, ppm frames and h264 splitting.
+- `_dsp.cpp` handles voice volume, mixing, levels and call sounds.
+- `_rtp.cpp` handles video depacketizing, the jitter buffer, rtcp and outgoing packets.
 
-- [ ] Put `uncord` and `uncord-git` on the AUR (AUR sign-ups are down, the packages are ready in `packaging/aur/`)
-- [ ] Get uncord into nixpkgs (once it has been around a while)
+The AUR and Nix packages are in `packaging/`. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [CHANGELOG.md](CHANGELOG.md) for what's changed.
+
+Still to do: put `uncord` and `uncord-git` on the AUR (the packages are ready in `packaging/aur/`, but AUR sign-ups are down), and get uncord into nixpkgs once it's been around a while.
 
 ## Credits and license
 
 Thanks to [hakuxyz](https://github.com/hakuxyz) for help tracking down screen sharing bugs.
 
-MIT, see [LICENSE](LICENSE).
+uncord is MIT licensed, see [LICENSE](LICENSE).
