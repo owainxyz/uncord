@@ -106,31 +106,31 @@ say "distro: ${PRETTY_NAME:-$distro} ($distro)"
 case "$distro" in
     debian)
         need="python3 python3-venv python3-pip python3-dev gcc g++ git ffmpeg libopus0 pipewire-bin"
-        extra="chafa mpv wl-clipboard xclip libnotify-bin gpu-screen-recorder"
+        extra="cargo chafa mpv wl-clipboard xclip libnotify-bin gpu-screen-recorder"
         pm="apt-get install -y" ;;
     fedora)
         need="python3 python3-pip python3-devel gcc gcc-c++ git ffmpeg-free opus pipewire-utils"
-        extra="chafa mpv wl-clipboard xclip libnotify"
+        extra="cargo chafa mpv wl-clipboard xclip libnotify"
         pm="dnf install -y" ;;
     arch)
         need="python python-pip gcc git ffmpeg opus pipewire"
-        extra="chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
+        extra="rust chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
         pm="pacman -S --needed --noconfirm" ;;
     suse)
         need="python3 python3-pip python3-devel gcc gcc-c++ git ffmpeg libopus0 pipewire-tools"
-        extra="chafa mpv wl-clipboard xclip libnotify-tools gpu-screen-recorder"
+        extra="cargo chafa mpv wl-clipboard xclip libnotify-tools gpu-screen-recorder"
         pm="zypper --non-interactive install" ;;
     void)
         need="python3 python3-pip python3-devel gcc git ffmpeg opus pipewire"
-        extra="chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
+        extra="cargo chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
         pm="xbps-install -Sy" ;;
     alpine)
         need="python3 py3-pip python3-dev gcc g++ musl-dev git ffmpeg opus pipewire-tools"
-        extra="chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
+        extra="cargo chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
         pm="apk add" ;;
     gentoo)
         need="dev-lang/python sys-devel/gcc dev-vcs/git media-video/ffmpeg media-libs/opus media-video/pipewire"
-        extra="media-gfx/chafa media-video/mpv gui-apps/wl-clipboard x11-misc/xclip x11-libs/libnotify"
+        extra="virtual/rust media-gfx/chafa media-video/mpv gui-apps/wl-clipboard x11-misc/xclip x11-libs/libnotify"
         pm="" ;;
     *)
         need=""; extra=""; pm="" ;;

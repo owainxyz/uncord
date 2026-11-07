@@ -32,7 +32,7 @@ Pictures, GIFs, stickers and custom emoji are drawn right in the terminal. They 
 
 You can join voice channels and call people. Volume can be set per person, mic gain is automatic and you can turn your camera on. You can go live with one key or watch someone else's stream in the terminal. Calls and streams use Discord's DAVE end-to-end encryption, the same as the official app.
 
-It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 30 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Image and video packets are handled in C, and voice decoding, mixing and levels in C++.
+It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 30 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Image and video packets are handled in C, voice decoding, mixing and levels in C++, and searching in the pickers in Rust.
 
 ## Installing
 
@@ -274,6 +274,7 @@ To set up a development copy:
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/python setup.py build_ext --inplace   # rebuild after editing _native.c, _dsp.cpp or _rtp.cpp
+.venv/bin/python setup.py build_rust --inplace --release   # rebuild after editing rust/ (needs setuptools-rust)
 .venv/bin/python -m uncord
 ```
 
@@ -283,17 +284,19 @@ Run the tests and benchmarks with:
 .venv/bin/python -m unittest discover -s tests -t .
 .venv/bin/python bench/render.py
 .venv/bin/python bench/opus.py
+.venv/bin/python bench/picker.py
 ```
 
 The tests never log in to Discord. [AGENTS.md](AGENTS.md) has the conventions for code, docs and releases, for people and AI coding agents alike.
 
 uncord is built on [discord.py-self](https://github.com/dolfies/discord.py-self) and [Textual](https://github.com/Textualize/textual). Most of the app is in `uncord/app.py`: the main window, the sidebar, the chat and the Discord event handlers. Message rendering is in `fmt.py` and `messages.py`, and the settings screen is `settings.py`. Calls, screen sharing and video are in `voice.py`, `golive.py` and `rtpvideo.py`. `safety.py` handles escape stripping, link checks and log scrubbing.
 
-There are three compiled extensions:
+There are four compiled extensions:
 
 - `_native.c` handles sixel encoding, kitty image chunks, ppm frames and h264 splitting.
 - `_dsp.cpp` handles Opus decoding, voice volume, mixing, levels and call sounds.
 - `_rtp.cpp` handles video depacketizing, the jitter buffer, rtcp and outgoing packets.
+- `rust/` is the Rust part (`uncord._fast`, built with PyO3), which handles searching in Ctrl+K and the other pickers. It's optional: without Rust installed, Python does the search instead.
 
 The AUR and Nix packages are in `packaging/`. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [CHANGELOG.md](CHANGELOG.md) for what's changed. What's planned next is in [ROADMAP.md](ROADMAP.md).
 

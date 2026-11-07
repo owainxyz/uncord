@@ -35,8 +35,11 @@ def hardenText() -> None:
         pass
 
 
+_STRIP = dict.fromkeys(UNSAFE)
+
+
 def clean(text: str) -> str:
-    return text.translate({c: None for c in UNSAFE}) if text else text
+    return text.translate(_STRIP) if text else text
 
 
 #scrubs the finished log line, so the token cant slip out through args, reprs or a traceback

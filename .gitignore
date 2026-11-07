@@ -13,3 +13,4 @@ dist/
 *.so
 result
 result-*
+rust/target/

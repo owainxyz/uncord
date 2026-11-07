@@ -5,6 +5,8 @@
   fetchFromGitHub,
   fetchPypi,
   rustPlatform,
+  cargo,
+  rustc,
   makeWrapper,
   ffmpeg,
   libopus,
@@ -99,12 +101,15 @@ py.buildPythonApplication {
   src = lib.cleanSourceWith {
     src = ../..;
     filter = path: type:
-      !(builtins.elem (baseNameOf path) [ ".venv" "build" ".git" "result" "uncord.egg-info" ".ffmpeg-bin" ".libopus" ".chafa" ])
+      !(builtins.elem (baseNameOf path) [ ".venv" "build" ".git" "result" "uncord.egg-info" ".ffmpeg-bin" ".libopus" ".chafa" "target" ])
       && !(lib.hasSuffix ".so" path);
   };
 
-  build-system = [ py.setuptools ];
-  nativeBuildInputs = [ makeWrapper ];
+  build-system = [ py.setuptools py.setuptools-rust ];
+  nativeBuildInputs = [ makeWrapper rustPlatform.cargoSetupHook cargo rustc ];
+
+  cargoRoot = "rust";
+  cargoDeps = rustPlatform.importCargoLock { lockFile = ../../rust/Cargo.lock; };
 
   dependencies = with py; [
     discord-py-self
@@ -136,7 +141,7 @@ py.buildPythonApplication {
     install -Dm644 packaging/uncord.desktop $out/share/applications/uncord.desktop
   '';
 
-  pythonImportsCheck = [ "uncord" "uncord._native" "uncord._dsp" "uncord._rtp" ];
+  pythonImportsCheck = [ "uncord" "uncord._native" "uncord._dsp" "uncord._rtp" "uncord._fast" ];
 
   passthru = { inherit davey discord-protos discord-py-self; };
 

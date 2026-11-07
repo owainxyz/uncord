@@ -9,6 +9,7 @@
 - [x] Lookalike links in mixed or entirely different alphabets
 - [x] A one-time prompt before Translate or Google Lens sends anything to Google
 - [x] Plugin options in Settings instead of slash commands
+- [x] Rust (PyO3) for picker search, 28× faster (1.01)
 
 ## After 1.0
 
@@ -16,7 +17,7 @@ Where the time goes now: most of what's left is Textual and Rich laying out widg
 
 - [ ] **Faster startup.** Show the sidebar from the last session straight away instead of waiting for Discord's login data
 - [ ] **Gateway events off the UI thread.** Parse and filter Discord's event stream in the background, so a flood of messages in a big server can't stall typing
-- [ ] **Native message spans.** Build the coloured spans for a message in one native pass (Rust or C++) instead of piece by piece in Python
+- [ ] **Native message spans.** Build the coloured spans for a message in one Rust pass instead of piece by piece in Python
 - [ ] **Native Opus encoding** for your own mic, matching the decoder
 - [ ] **Prebuilt wheels** so installing doesn't need a compiler
 - [ ] **Stable AUR and Nix packages** that follow tagged releases

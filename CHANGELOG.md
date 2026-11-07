@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.01 (2026-11-07)
+
+- uncord now has a Rust part (`rust/`, built with PyO3). Searching in Ctrl+K, the emoji, sticker and GIF pickers and every other picker happens in Rust: 0.7 ms per key instead of 20 ms with 20,000 channels, people and servers, so typing in a big account doesn't lag
+- Pickers now find the best matches in the whole list. Before, they stopped looking after the first 4,000 hits
+- Stripping control characters from incoming text is quicker
+- Rust is optional when installing: with cargo installed, the install script, pip, the AUR package and Nix build it, and without it Python does the search the same way as before. The install script now offers to install Rust as a nice-to-have
+
 ## 1.00 (2026-11-07)
 
 uncord 1.0 is about speed, safety and being easier to work on.

@@ -8,7 +8,7 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/owainxyz/uncord"
 license=('MIT')
 depends=('python' 'ffmpeg' 'opus' 'pipewire')
-makedepends=('git' 'python-pip' 'gcc')
+makedepends=('git' 'python-pip' 'gcc' 'rust')
 optdepends=('chafa: faster, nicer inline images'
             'mpv: pop videos and streams out into a window'
             'wl-clipboard: paste images on wayland'

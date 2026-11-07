@@ -11,6 +11,7 @@ uncord is a Discord client for the terminal, written in Python on [discord.py-se
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/python setup.py build_ext --inplace     # after editing _native.c, _dsp.cpp or _rtp.cpp
+.venv/bin/python setup.py build_rust --inplace --release   # after editing rust/ (pip install setuptools-rust)
 .venv/bin/python -m uncord                         # run it (needs a Discord login)
 .venv/bin/python -m uncord --doctor                # check ffmpeg, opus, chafa, mpv and so on
 ```
@@ -22,6 +23,7 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 pyflakes uncord tests
 .venv/bin/python bench/render.py                   # rendering must not get slower
 .venv/bin/python bench/opus.py                     # nor voice decoding
+.venv/bin/python bench/picker.py                   # nor picker search
 ```
 
 Tests run offline and never log in. Don't start the real app against someone's account to test a change; test the function directly, or drive a screen with Textual's `run_test` and a stub app.
@@ -43,6 +45,7 @@ Tests run offline and never log in. Don't start the real app against someone's a
 | `uncord/_native.c` | Sixel, Kitty chunks, PPM frames, H.264 splitting |
 | `uncord/_dsp.cpp` | Opus decoding, voice volume, mixing, levels, call sounds |
 | `uncord/_rtp.cpp` | Video depacketizers, jitter buffer, RTCP, outgoing packets |
+| `rust/` | `uncord._fast` (Rust, PyO3): picker search. Optional, so every Rust function needs a Python fallback that gives the same results, with a test comparing them |
 | `tests/` | `unittest` tests |
 | `bench/` | Benchmarks |
 | `packaging/` | AUR and Nix packages |
