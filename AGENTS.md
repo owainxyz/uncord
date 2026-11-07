@@ -11,7 +11,7 @@ uncord is a Discord client for the terminal, written in Python on [discord.py-se
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/python setup.py build_ext --inplace     # after editing _native.c, _dsp.cpp or _rtp.cpp
-.venv/bin/python setup.py build_rust --inplace --release   # after editing rust/ (pip install setuptools-rust)
+.venv/bin/python setup.py build_rust --inplace --release   # after editing rust/ (pip install setuptools-rust, needs cargo)
 .venv/bin/python -m uncord                         # run it (needs a Discord login)
 .venv/bin/python -m uncord --doctor                # check ffmpeg, opus, chafa, mpv and so on
 ```
@@ -45,7 +45,9 @@ Tests run offline and never log in. Don't start the real app against someone's a
 | `uncord/_native.c` | Sixel, Kitty chunks, PPM frames, H.264 splitting |
 | `uncord/_dsp.cpp` | Opus decoding, voice volume, mixing, levels, call sounds |
 | `uncord/_rtp.cpp` | Video depacketizers, jitter buffer, RTCP, outgoing packets |
-| `rust/` | `uncord._fast` (Rust, PyO3): picker search. Optional, so every Rust function needs a Python fallback that gives the same results, with a test comparing them |
+| `rust/` | `uncord._fast` (Rust, PyO3): picker search. Required. When porting something from Python, keep a test comparing the results with the old Python version |
+| `uncord/icons.py` | Button and menu icons: Nerd Font glyphs with emoji fallbacks. Use `icon("name")` instead of writing emoji into the UI. The server and DM sidebar stays plain text |
+| `uncord/snapshot.py` | The copy of the last chat and sidebar drawn at startup before Discord connects |
 | `tests/` | `unittest` tests |
 | `bench/` | Benchmarks |
 | `packaging/` | AUR and Nix packages |

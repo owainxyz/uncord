@@ -105,32 +105,32 @@ say "distro: ${PRETTY_NAME:-$distro} ($distro)"
 # packages per distro: needed, then nice to have (installed one by one so a missing one doesn't stop the rest)
 case "$distro" in
     debian)
-        need="python3 python3-venv python3-pip python3-dev gcc g++ git ffmpeg libopus0 pipewire-bin"
-        extra="cargo chafa mpv wl-clipboard xclip libnotify-bin gpu-screen-recorder"
+        need="python3 python3-venv python3-pip python3-dev gcc g++ cargo git ffmpeg libopus0 pipewire-bin"
+        extra="chafa mpv wl-clipboard xclip libnotify-bin gpu-screen-recorder"
         pm="apt-get install -y" ;;
     fedora)
-        need="python3 python3-pip python3-devel gcc gcc-c++ git ffmpeg-free opus pipewire-utils"
-        extra="cargo chafa mpv wl-clipboard xclip libnotify"
+        need="python3 python3-pip python3-devel gcc gcc-c++ cargo git ffmpeg-free opus pipewire-utils"
+        extra="chafa mpv wl-clipboard xclip libnotify"
         pm="dnf install -y" ;;
     arch)
-        need="python python-pip gcc git ffmpeg opus pipewire"
-        extra="rust chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
+        need="python python-pip gcc rust git ffmpeg opus pipewire"
+        extra="chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
         pm="pacman -S --needed --noconfirm" ;;
     suse)
-        need="python3 python3-pip python3-devel gcc gcc-c++ git ffmpeg libopus0 pipewire-tools"
-        extra="cargo chafa mpv wl-clipboard xclip libnotify-tools gpu-screen-recorder"
+        need="python3 python3-pip python3-devel gcc gcc-c++ cargo git ffmpeg libopus0 pipewire-tools"
+        extra="chafa mpv wl-clipboard xclip libnotify-tools gpu-screen-recorder"
         pm="zypper --non-interactive install" ;;
     void)
-        need="python3 python3-pip python3-devel gcc git ffmpeg opus pipewire"
-        extra="cargo chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
+        need="python3 python3-pip python3-devel gcc cargo git ffmpeg opus pipewire"
+        extra="chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
         pm="xbps-install -Sy" ;;
     alpine)
-        need="python3 py3-pip python3-dev gcc g++ musl-dev git ffmpeg opus pipewire-tools"
-        extra="cargo chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
+        need="python3 py3-pip python3-dev gcc g++ musl-dev cargo git ffmpeg opus pipewire-tools"
+        extra="chafa mpv wl-clipboard xclip libnotify gpu-screen-recorder"
         pm="apk add" ;;
     gentoo)
-        need="dev-lang/python sys-devel/gcc dev-vcs/git media-video/ffmpeg media-libs/opus media-video/pipewire"
-        extra="virtual/rust media-gfx/chafa media-video/mpv gui-apps/wl-clipboard x11-misc/xclip x11-libs/libnotify"
+        need="dev-lang/python sys-devel/gcc virtual/rust dev-vcs/git media-video/ffmpeg media-libs/opus media-video/pipewire"
+        extra="media-gfx/chafa media-video/mpv gui-apps/wl-clipboard x11-misc/xclip x11-libs/libnotify"
         pm="" ;;
     *)
         need=""; extra=""; pm="" ;;
@@ -230,6 +230,7 @@ python=$(findPython)
 [ -n "$python" ] || die "uncord needs python 3.10 or newer"
 say "python: $($python --version 2>&1)"
 command -v git >/dev/null 2>&1 || die "git is needed to fetch discord.py-self"
+command -v cargo >/dev/null 2>&1 || die "cargo is needed to build uncord's rust part (install rust or cargo from your package manager, or https://rustup.rs)"
 "$python" -c 'import venv, ensurepip' 2>/dev/null || die "python venv/pip missing (debian/ubuntu: apt install python3-venv)"
 
 say "setting up $venv"

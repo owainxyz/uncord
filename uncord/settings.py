@@ -14,6 +14,9 @@ from . import __version__, env, plugins
 TABS = (("appearance", "Appearance"), ("notifications", "Notifications"), ("chat", "Chat"),
         ("voice", "Voice & video"), ("privacy", "Privacy"), ("plugins", "Plugins"), ("about", "About"))
 
+ICON_STYLES = (("Automatic (icons if a Nerd Font is installed)", "auto"), ("Nerd Font icons", "nerd"),
+               ("Emoji", "emoji"))
+
 SPACING = (("Compact", "0"), ("Cozy (a gap between people)", "1"), ("Roomy", "2"))
 
 
@@ -122,6 +125,8 @@ class SettingsScreen(ModalScreen):
         themes = sorted(self.app.available_themes)
         yield self.head("Theme")
         yield self.select("theme", [(t, t) for t in themes], self.app.theme)
+        yield Static("Icons")
+        yield self.select("icon_style", ICON_STYLES, cfg.get("icon_style", "auto"))
         yield self.head("Messages")
         yield Static("Line spacing")
         yield self.select("message_spacing", SPACING, str(cfg.get("message_spacing", 1)))
@@ -211,6 +216,10 @@ class SettingsScreen(ModalScreen):
         cfg = self.cfg
         yield self.switch("confirm_links", "Ask before opening links", cfg.get("confirm_links", False),
                           "shows the full address first, links that aren't http or https are never opened")
+        yield self.switch("instant_start", "Show your last chat straight away when uncord starts",
+                          cfg.get("instant_start", True),
+                          "keeps a copy of the last chat you had open and your server list in uncord's cache, "
+                          "readable only by you, so it can be drawn before Discord connects")
         yield self.switch("rich_presence_ipc", "Let apps on this computer set your activity",
                           self.app.plugin("rich_presence"), "games and music players use this for Rich Presence")
         yield self.head("Your account")
@@ -353,6 +362,10 @@ class SettingsScreen(ModalScreen):
             return
         self.cfg[key] = ev.value
         self.cfg.save()
+        if key == "instant_start" and not ev.value:
+            from . import snapshot
+
+            snapshot.forget()
         if key == "desktop_notify":
             app.applyNotify()
         elif key in ("inline_media", "emoji_images", "show_link_domains"):
@@ -382,6 +395,8 @@ class SettingsScreen(ModalScreen):
         self.cfg.save()
         if key == "message_spacing":
             app.applySpacing()
+        elif key == "icon_style":
+            app.applyIcons()
         elif key == "dm_limit":
             app.rebuildDms()
 

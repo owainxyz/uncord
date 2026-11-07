@@ -17,6 +17,7 @@ from .screens import MessageSearch, Picker, Prompt
 
 from .panels import SidePanel
 from .tasks import spawn
+from .icons import icon
 
 log = logging.getLogger("uncord")
 
@@ -197,7 +198,7 @@ class PickersMixin:
         entries = [
             (
                 Text(
-                    "✆ Leave call  (F8)" if inside else "🔊 Join voice",
+                    f"{icon('leave')} Leave call  (F8)" if inside else f"{icon('voice')} Join voice",
                     style="bold red" if inside else "green",
                 ),
                 "leave disconnect join",
@@ -493,7 +494,7 @@ class PickersMixin:
                 "● Voice Connected" if ok else "◌ Connecting…", style="bold green" if ok else "bold yellow"
             )
             btn = Text(
-                " ✆ Leave ", style=Style(bgcolor="red", color="white", bold=True, meta={"sp": "leave"})
+                f" {icon('leave')} Leave ", style=Style(bgcolor="red", color="white", bold=True, meta={"sp": "leave"})
             )
             t.append_text(head)
             t.append(" " * max(1, width - head.cell_len - btn.cell_len))
@@ -516,13 +517,13 @@ class PickersMixin:
         muted, deaf = self.selfMuted, self.selfDeafened
         btns = Text()
         btns.append(
-            " 🎙 " if not muted else " 🔇 ", style=Style(meta={"sp": "mute"}, bgcolor="red" if muted else None)
+            f" {icon('mic')} " if not muted else f" {icon('micOff')} ", style=Style(meta={"sp": "mute"}, bgcolor="red" if muted else None)
         )
         btns.append(
-            " 🎧 " if not deaf else " 🙉 ",
+            f" {icon('headphones')} " if not deaf else f" {icon('deafened')} ",
             style=Style(meta={"sp": "deafen"}, bgcolor="red" if deaf else None),
         )
-        btns.append(" ⚙ ", style=Style(meta={"sp": "settings"}))
+        btns.append(f" {icon('settings')} ", style=Style(meta={"sp": "settings"}))
         t.append_text(name)
         t.append(" " * max(1, width - name.cell_len - btns.cell_len))
         t.append_text(btns)
@@ -547,7 +548,7 @@ class PickersMixin:
             (statusDot(s) + Text(STATUS_NAME[s]), STATUS_NAME[s].lower(), s)
             for s in ("online", "idle", "dnd", "invisible")
         ]
-        entries.append((Text("✎ Set custom status…"), "custom status set", "custom"))
+        entries.append((Text(f"{icon('status')} Set custom status…"), "custom status set", "custom"))
         if self.ownCustomStatus():
             entries.append((Text("✕ Clear custom status"), "clear custom status", "clear"))
         self.push_screen(Picker(entries, placeholder="Set your status", title="Status"), self._statusPicked)

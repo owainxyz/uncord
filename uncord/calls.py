@@ -19,6 +19,7 @@ from .screens import Picker, UserMenu
 
 from .panels import ChatInput, VoiceBar
 from .tasks import spawn
+from .icons import icon
 
 log = logging.getLogger("uncord")
 
@@ -221,12 +222,12 @@ class CallsMixin:
             meTalking = vc.transmitting and not self.selfMuted
             here = self.current is not None and self.current.id == ch.id
             if not here:
-                t.append(f"🔊 {snippet(channelName(ch), 24)}", style=Style(bold=True, meta={"vbtn": "chat"}))
+                t.append(f"{icon('voice')} {snippet(channelName(ch), 24)}", style=Style(bold=True, meta={"vbtn": "chat"}))
                 t.append("  ")
             if self.share is not None:
-                t.append("🔴 LIVE ", style="bold red")
+                t.append(f"{icon('live')} LIVE ", style="bold red")
             if self.camera is not None:
-                t.append("📷 ", style="bold")
+                t.append(f"{icon('camera')} ", style="bold")
             t.append("● " if meTalking else "○ ", style="bold green" if meTalking else "bright_black")
             t.append("You", style=Style(bold=True, color="green" if meTalking else None))
             if vc.micSilent and not self.selfMuted:
@@ -243,9 +244,9 @@ class CallsMixin:
                 )
                 label = name
                 if getattr(vs, "self_mute", False) or getattr(vs, "mute", False):
-                    label += " 🔇"
+                    label += f" {icon('micOff')}"
                 if getattr(vs, "self_deaf", False) or getattr(vs, "deaf", False):
-                    label += " 🙉"
+                    label += f" {icon('deafened')}"
                 if vol != 100:
                     label += f" {vol}%"
                 t.append(
@@ -259,13 +260,13 @@ class CallsMixin:
                 if getattr(vs, "self_stream", False):
                     on = self.isWatching(uid, "stream")
                     t.append(
-                        " 📺 WATCHING" if on else " 🔴LIVE",
+                        f" {icon('watching')} WATCHING" if on else f" {icon('live')} LIVE",
                         style=Style(bold=True, color="white", bgcolor="red", meta={"vwatch": uid}),
                     )
                 if getattr(vs, "self_video", False):
                     on = self.isWatching(uid, "camera")
                     t.append(
-                        " 📷 WATCHING" if on else " 📷",
+                        f" {icon('camera')} WATCHING" if on else f" {icon('camera')}",
                         style=Style(bold=True, color="white", bgcolor="blue" if on else None, meta={"vcam": uid}),
                     )
                 t.append("   ")
@@ -287,20 +288,21 @@ class CallsMixin:
                 secs = int(time.monotonic() - self.callStarted)
                 h, m = divmod(secs // 60, 60)
                 t.append((f"{h}:{m:02d}:{secs % 60:02d}" if h else f"{m}:{secs % 60:02d}") + "  ", style="bright_black")
-            btn("🔇 Unmute" if self.selfMuted else "🎙 Mute", "mute", self.selfMuted)
-            btn("🙉 Undeafen" if self.selfDeafened else "🎧 Deafen", "deafen", self.selfDeafened)
-            btn("■ Stop sharing" if self.share else "🖥 Share", "share", on=bool(self.share))
-            btn("■ Camera off" if self.camera else "📷 Camera", "camera", on=bool(self.camera))
+            btn(f"{icon('micOff')} Unmute" if self.selfMuted else f"{icon('mic')} Mute", "mute", self.selfMuted)
+            btn(f"{icon('deafened')} Undeafen" if self.selfDeafened else f"{icon('headphones')} Deafen", "deafen",
+                self.selfDeafened)
+            btn("■ Stop sharing" if self.share else f"{icon('screen')} Share", "share", on=bool(self.share))
+            btn("■ Camera off" if self.camera else f"{icon('camera')} Camera", "camera", on=bool(self.camera))
             if self.watching is not None or any(
                 getattr(vs, "self_stream", False) or getattr(vs, "self_video", False) for _u, _n, vs in people
             ):
                 btn(
-                    "📺 Watching" if self.watching is not None else "📺 Watch (F11)",
+                    f"{icon('watching')} Watching" if self.watching is not None else f"{icon('watching')} Watch (F11)",
                     "watch",
                     on=self.watching is not None,
                 )
-            btn("⚙", "settings")
-            btn("✆ Leave call (F8)", "leave", danger=True)
+            btn(icon("settings"), "settings")
+            btn(f"{icon('leave')} Leave call (F8)", "leave", danger=True)
             if t != self._lastBar:
                 self._lastBar = t
                 bar.update(t)
@@ -334,7 +336,7 @@ class CallsMixin:
             return
         q = self.shareQuality()
         entries = [
-            (Text(f"🖥 {name}") + Text(f"  {res}", style="bright_black"), name.lower(), name)
+            (Text(f"{icon('screen')} {name}") + Text(f"  {res}", style="bright_black"), name.lower(), name)
             for name, res in mons
         ]
         self.push_screen(
@@ -437,7 +439,8 @@ class CallsMixin:
                 self.notify("Nobody in this call is sharing their screen or camera.")
                 return
             if len(choices) > 1:
-                entries = [(Text(f"🔴 {n}'s screen" if k == "stream" else f"📷 {n}'s camera"), f"{n} {k}".lower(),
+                entries = [(Text(f"{icon('live')} {n}'s screen" if k == "stream" else f"{icon('camera')} {n}'s camera"),
+                            f"{n} {k}".lower(),
                             (u, k)) for u, n, k in choices]
                 self.push_screen(
                     Picker(entries, placeholder="Watch what?", title="Screen shares and cameras"),
@@ -595,7 +598,7 @@ class CallsMixin:
         entries = []
         for d in devices:
             m = golive.pickCameraMode(modes, d)
-            entries.append((Text(f"📷 {d}") + Text(f"  {m[1]}x{m[2]} {m[3]}fps", style="bright_black"), d, m))
+            entries.append((Text(f"{icon('camera')} {d}") + Text(f"  {m[1]}x{m[2]} {m[3]}fps", style="bright_black"), d, m))
         self.push_screen(Picker(entries, placeholder="Which camera?", title="Camera"),
                          lambda m: m and self.startCamera(m))
 
@@ -723,11 +726,11 @@ class CallsMixin:
         actions = [(Text("☑ Mute (for you)" if muted else "☐ Mute (for you)"), "mute")]
         if u is not None:
             actions += [
-                (Text("👤 Profile"), "profile"),
-                (Text("✉ Message"), "dm"),
+                (Text(f"{icon('profile')} Profile"), "profile"),
+                (Text(f"{icon('message')} Message"), "dm"),
                 (Text("@ Mention"), "mention"),
             ]
-        actions.append((Text("⧉ Copy User ID"), "copyid"))
+        actions.append((Text(f"{icon('id')} Copy User ID"), "copyid"))
 
         def done(act) -> None:
             if act == "mute":

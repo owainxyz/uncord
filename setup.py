@@ -1,16 +1,8 @@
-#the c and c++ parts are required so installing needs gcc, g++ and the python headers
-#the rust part is optional, without cargo it's skipped and python does that work instead
+#the c, c++ and rust parts are all required so installing needs gcc, g++, cargo and the python headers
 import re
 
 from setuptools import Extension, setup
-
-try:
-    from setuptools_rust import Binding, RustExtension
-
-    RUST = [RustExtension("uncord._fast", "rust/Cargo.toml", binding=Binding.PyO3, py_limited_api="auto",
-                          optional=True)]
-except ImportError:
-    RUST = []
+from setuptools_rust import Binding, RustExtension
 
 
 #the title bar shows versions like 0.75f but pip only allows a b and rc after the number, so 0.75f installs as 0.75.6
@@ -26,4 +18,4 @@ setup(version=version(), ext_modules=[
     Extension("uncord._dsp", ["uncord/_dsp.cpp"], extra_compile_args=["-O2", "-std=c++17"], libraries=["dl"],
               language="c++"),
     Extension("uncord._rtp", ["uncord/_rtp.cpp"], extra_compile_args=["-O2", "-std=c++17"], language="c++"),
-], rust_extensions=RUST)
+], rust_extensions=[RustExtension("uncord._fast", "rust/Cargo.toml", binding=Binding.PyO3, py_limited_api="auto")])

@@ -1,6 +1,7 @@
 #discord client that forwards gateway events to the app
 from __future__ import annotations
 
+import asyncio
 
 import discord
 
@@ -9,9 +10,28 @@ import discord
 
 
 class UncordClient(discord.Client):
+    #member lists load in the background after ready instead of holding up the whole window
     def __init__(self, app) -> None:
-        super().__init__()
+        super().__init__(chunk_guilds_at_startup=False)
         self.app = app
+
+    #opens the gateway while /users/@me is still checking the token, like the desktop app's fast connect
+    async def start(self, token: str, *, reconnect: bool = True) -> None:
+        login = asyncio.create_task(self.login(token))
+        while not login.done() and self.http.token != token.strip():
+            await asyncio.sleep(0.005)
+        if login.done():
+            await login
+            await self.connect(reconnect=reconnect)
+            return
+        gateway = asyncio.create_task(self.connect(reconnect=reconnect))
+        try:
+            await login
+        except BaseException:
+            gateway.cancel()
+            await self.close()
+            raise
+        await gateway
 
     async def on_ready(self) -> None:
         await self.app.onDiscordReady()

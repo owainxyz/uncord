@@ -21,6 +21,7 @@ from .screens import Confirm, GifPicker, ImageScreen, Picker, ProfileScreen, Tex
 
 from .panels import ChatInput
 from .tasks import spawn
+from .icons import icon
 
 log = logging.getLogger("uncord")
 
@@ -131,7 +132,7 @@ class MessageActionsMixin:
             if started:
                 dur = getattr(a, "duration", None)
                 self.notify(
-                    f"▶ Playing {'voice message' if getattr(a, 'is_voice_message', lambda: False)() else a.filename}"
+                    f"{icon('play')} Playing {'voice message' if getattr(a, 'is_voice_message', lambda: False)() else a.filename}"
                     + (f" ({int(dur // 60)}:{int(dur % 60):02d})" if dur else "")
                     + ". Again to stop.",
                     markup=False,
@@ -249,42 +250,42 @@ class MessageActionsMixin:
 
     def messageMenu(self, m: discord.Message) -> None:
         mine = m.author.id == self.meId
-        acts = [("reply", "↪ Reply", "r"), ("react", "☺ Add reaction", "+")]
+        acts = [("reply", f"{icon('reply')} Reply", "r"), ("react", f"{icon('react')} Add reaction", "+")]
         if mine:
-            acts.append(("edit", "✎ Edit", "e"))
+            acts.append(("edit", f"{icon('edit')} Edit", "e"))
         if mine or self.canManage(m):
-            acts.append(("delete", "🗑 Delete", "d"))
+            acts.append(("delete", f"{icon('delete')} Delete", "d"))
         if self.audioAttachments(m):
-            acts.insert(0, ("play", "▶ Play voice message / audio", "v"))
+            acts.insert(0, ("play", f"{icon('play')} Play voice message / audio", "v"))
         if media.itemsOf(m) or re.search(r"<a?:\w+:\d+>", m.content):
             acts.append(("view", "🖼 View media", "v"))
         if self.linksOf(m):
             acts.append(("open", "↗ Open link", "o"))
         if m.reference is not None and m.reference.message_id and m.type == discord.MessageType.reply:
-            acts.append(("jumpreply", "↩ Jump to the replied message", "J"))
-        acts += [("copy", "⧉ Copy text", "y"), ("link", "🔗 Copy message link", "c")]
+            acts.append(("jumpreply", f"{icon('jump')} Jump to the replied message", "J"))
+        acts += [("copy", f"{icon('copy')} Copy text", "y"), ("link", f"{icon('link')} Copy message link", "c")]
         if not isinstance(m.channel, PRIVATE):
             get_thread = getattr(getattr(m.channel, "guild", None), "get_thread", None)
             has = getattr(m, "thread", None) is not None or (
                 get_thread is not None and get_thread(m.id) is not None
             )
             if has or isinstance(m.channel, discord.TextChannel):
-                acts.append(("thread", "🧵 Open thread" if has else "🧵 Create thread", "t"))
+                acts.append(("thread", f"{icon('thread')} Open thread" if has else f"{icon('thread')} Create thread", "t"))
             if self.canManage(m) or isinstance(m.channel, PRIVATE):
-                acts.append(("pin", "📌 Unpin" if m.pinned else "📌 Pin", "P"))
+                acts.append(("pin", f"{icon('pin')} Unpin" if m.pinned else f"{icon('pin')} Pin", "P"))
         if not mine:
-            acts += [("dm", f"✉ Message {m.author.display_name}", "m")]
-        acts.append(("profile", "👤 Profile", "p"))
+            acts += [("dm", f"{icon('message')} Message {m.author.display_name}", "m")]
+        acts.append(("profile", f"{icon('profile')} Profile", "p"))
         #plugin actions
         if self.plugin("translate") and m.content:
-            acts.append(("translate", "🌐 Translate", ""))
+            acts.append(("translate", f"{icon('translate')} Translate", ""))
         if self.plugin("who_reacted") and m.reactions:
-            acts.append(("reacted", "☺ Who reacted", ""))
+            acts.append(("reacted", f"{icon('react')} Who reacted", ""))
         images = [it for it in media.itemsOf(m) if it.kind in ("image", "gif", "sticker")]
         if self.plugin("reverse_image") and images:
-            acts.append(("lens", "🔍 Search image (Google Lens)", ""))
+            acts.append(("lens", f"{icon('search')} Search image (Google Lens)", ""))
         if self.plugin("view_raw"):
-            acts.append(("raw", "{ } View raw", ""))
+            acts.append(("raw", f"{icon('raw')} View raw", ""))
         entries = [
             (Text(label) + Text(f"   {key}", style="bright_black"), label.lower(), act)
             for act, label, key in acts
@@ -369,7 +370,7 @@ class MessageActionsMixin:
     def viewRaw(self, m: discord.Message) -> None:
         body = Text(m.content or "(no text)")
         for a in m.attachments:
-            body.append(f"\n📎 {a.filename}  {a.url}", style="bright_black")
+            body.append(f"\n{icon('attachment')} {a.filename}  {a.url}", style="bright_black")
         for e in m.embeds:
             body.append(f"\n▣ embed: {e.title or e.type}  {e.url or ''}", style="bright_black")
         body.append(f"\n\nid {m.id} · author {m.author.id} · {m.created_at.isoformat()}", style="bright_black")

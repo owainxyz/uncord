@@ -27,6 +27,8 @@ DEFAULTS: dict[str, Any] = {
     "text_replace": {},
     "keywords": [],
     "consented": {},
+    "instant_start": True,
+    "icon_style": "auto",
 }
 
 

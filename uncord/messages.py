@@ -165,22 +165,23 @@ class MessageView(Vertical):
         if self.is_attached:
             self.rerender()
 
-    def rerender(self) -> None:
+    def renderable(self, previewed=None):
         app = self.app
-        self.query_one(".msgtext", Static).update(
-            renderMessage(
-                self.message,
-                app.meId,
-                app.client.get_channel,
-                grouped=self.grouped,
-                reveal=self.revealed,
-                deleted=self.deleted,
-                edits=tuple(self.edits),
-                translation=self.translation,
-                previewed=self.previewed,
-                reactions=False,
-            )
+        return renderMessage(
+            self.message,
+            app.meId,
+            app.client.get_channel,
+            grouped=self.grouped,
+            reveal=self.revealed,
+            deleted=self.deleted,
+            edits=tuple(self.edits),
+            translation=self.translation,
+            previewed=self.previewed if previewed is None else previewed,
+            reactions=False,
         )
+
+    def rerender(self) -> None:
+        self.query_one(".msgtext", Static).update(self.renderable())
         self.query_one(ReactionBar).sync(self.message.reactions)
 
     def refreshFrom(self, message: discord.Message) -> None:

@@ -21,6 +21,7 @@ from textual.widgets import Footer, Input, Static, Tree
 from textual.widgets.tree import TreeNode
 
 from . import safety
+from .icons import icon
 
 safety.hardenText()
 
@@ -214,6 +215,9 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         super().__init__()
         self.token = token
         self.cfg = Config()
+        from . import icons
+
+        icons.setStyle(self.cfg.get("icon_style", "auto"))
         self.client = UncordClient(self)
         self.current = None
         self.nodes: Dict[int, TreeNode] = {}  #channel id to node
@@ -245,6 +249,9 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.detachedNew = 0
         self._lastTypingSent = 0.0
         self._readyOnce = False
+        self._prefetch = None
+        self._snapshotChannel: Optional[int] = None
+        self._snapshotTimer = None
         self._lastTalking = None
         self._reactionPending: set = set()
         self._ackTask: Optional[asyncio.Task] = None
@@ -379,7 +386,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                         select_on_focus=False,
                     )
                     yield ComposerButton("GIF", "gif", "Send a GIF (Ctrl+G)")
-                    yield ComposerButton("☺", "emoji_insert", "Emoji (Ctrl+E)")
+                    yield ComposerButton(icon("emoji"), "emoji_insert", "Emoji (Ctrl+E)")
             with VerticalScroll(id="memberpane", classes="" if self.cfg.get("show_members") else "hidden"):
                 yield MemberList("", id="members")
         footer = Footer(show_command_palette=False)
@@ -470,6 +477,15 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         fmt.OWNER_CROWN = self.plugin("owner_crown")
         fmt.SHOW_LINK_DOMAINS = bool(self.cfg.get("show_link_domains", True))
 
+    def applyIcons(self) -> None:
+        from . import icons
+
+        icons.setStyle(self.cfg.get("icon_style", "auto"))
+        if self._readyOnce:
+            self.updateMePanel()
+            self._lastBar = None
+            self.updateVoicebar()
+
     def on_mount(self) -> None:
         self.applyPlugins()
         self.applySpacing()
@@ -478,6 +494,8 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.theme = theme if theme in self.available_themes else "ansi-dark"
         if not self.cfg.get("show_sidebar", True):
             self.query_one("#side").add_class("hidden")
+        if self.cfg.get("instant_start", True):
+            self.showSnapshot()
         self.runDiscord()
         self.set_interval(1.0, self.tickTyping)
         self.set_interval(0.4, self.updateVoicebar)
@@ -485,6 +503,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
 
     @work(exclusive=True, group="discord")
     async def runDiscord(self) -> None:
+        spawn(self.prefetchHistory())
         try:
             await self.client.start(self.token)
         except discord.LoginFailure:
@@ -495,6 +514,92 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         except Exception as e:
             log.exception("discord client crashed")
             self.query_one("#title", Static).update(Text(f"Disconnected: {e!r}", style="red"))
+
+    #draw the sidebar and last chat as they were when you quit, swapped for the live ones once connected
+    def showSnapshot(self) -> None:
+        from . import snapshot
+
+        data = snapshot.load()
+        if not data:
+            return
+        try:
+            tree = self.query_one("#sidebar", Tree)
+            stack = [tree.root]
+            for depth, markup, expanded, branch in data.get("sidebar", [])[: snapshot.MAX_NODES]:
+                depth = max(0, min(int(depth), len(stack) - 1))
+                del stack[depth + 1:]
+                node = stack[-1].add(Text.from_markup(markup), data=("snap", None), expand=bool(expanded),
+                                     allow_expand=bool(branch))
+                stack.append(node)
+            ml = self.query_one("#messages", MessageList)
+            ml.mount_all([Static(Text.from_ansi(a), classes="msg snapmsg") for a in data.get("messages", [])])
+            ml.call_after_refresh(ml.scroll_end, animate=False)
+            if data.get("title"):
+                self.query_one("#title", Static).update(
+                    Text.assemble(Text.from_markup(data["title"]), ("   connecting…", "bright_black")))
+            self._snapshotChannel = data.get("channel")
+        except Exception:
+            log.debug("snapshot", exc_info=True)
+
+    def saveSnapshot(self) -> None:
+        from . import snapshot
+
+        self._snapshotTimer = None
+        if not self.cfg.get("instant_start", True):
+            snapshot.forget()
+            return
+        if self.current is None or not self._readyOnce:
+            return
+        try:
+            nodes = []
+
+            def walk(node, depth):
+                for child in node.children:
+                    if len(nodes) >= snapshot.MAX_NODES:
+                        return
+                    label = child.label if isinstance(child.label, Text) else Text(str(child.label))
+                    nodes.append((depth, label.markup, child.is_expanded, child.allow_expand))
+                    if child.is_expanded:
+                        walk(child, depth + 1)
+
+            walk(self.query_one("#sidebar", Tree).root, 0)
+            ml = self.query_one("#messages", MessageList)
+            width = ml.content_size.width or 80
+            views = ml.views()[-snapshot.MAX_MESSAGES:]
+            msgs = [snapshot.toAnsi(v.renderable(), width) for v in views]
+            snapshot.save({"channel": self.current.id, "title": channelTitle(self.current).markup,
+                           "sidebar": nodes, "messages": msgs})
+        except Exception:
+            log.debug("saving snapshot", exc_info=True)
+
+    def scheduleSnapshot(self) -> None:
+        if self._snapshotTimer is not None:
+            self._snapshotTimer.stop()
+        self._snapshotTimer = self.set_timer(3.0, self.saveSnapshot)
+
+    #fetch the last chat's messages while discord is still sending READY, they're ready the moment it ends
+    async def prefetchHistory(self) -> None:
+        last = self.cfg.get("last_channel")
+        if not last:
+            return
+        http = self.client.http
+        for _ in range(400):
+            if http.token:
+                break
+            await asyncio.sleep(0.01)
+        else:
+            return
+        try:
+            self._prefetch = (int(last), await http.logs_from(int(last), HISTORY_PAGE), time.monotonic())
+        except Exception:
+            log.debug("history prefetch", exc_info=True)
+
+    def takePrefetch(self, ch) -> Optional[list]:
+        pre, self._prefetch = self._prefetch, None
+        if pre is None or pre[0] != ch.id or time.monotonic() - pre[2] > 30:
+            return None
+        st = self.client._connection
+        return [st.create_message(channel=ch, data=d) for d in pre[1]]
 
     #unread
 
@@ -1235,17 +1340,22 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         except Exception:
             acked = None
         cached = self.msgCache.get(ch.id) if around is None else None
-        await ml.remove_children()
-        if cached:
+        fromSnapshot = around is None and self._snapshotChannel == ch.id
+        self._snapshotChannel = None
+        if not fromSnapshot:
+            await ml.remove_children()
+        if cached and not fromSnapshot:
             await self._showMessages(ml, ch, cached, acked)
-        else:
+        elif not fromSnapshot:
             self.setLoading(True)
         try:
             if around is not None:
                 msgs = [m async for m in ch.history(limit=HISTORY_PAGE, around=around)]
                 msgs.sort(key=lambda m: m.id, reverse=True)
             else:
-                msgs = [m async for m in ch.history(limit=HISTORY_PAGE)]
+                msgs = self.takePrefetch(ch) if self._prefetch else None
+                if msgs is None:
+                    msgs = [m async for m in ch.history(limit=HISTORY_PAGE)]
         except discord.Forbidden:
             msgs = None
         except Exception as e:
@@ -1266,6 +1376,11 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                 self.scheduleAck(ch, 0.5)
                 return
         await ml.remove_children()
+        if fromSnapshot and isinstance(msgs, list):
+            await self._showMessages(ml, ch, msgs, acked, quick=True)
+            self.scheduleAck(ch, 0.5)
+            self.scheduleSnapshot()
+            return
         if msgs is None:
             self.setLoading(False)
             await ml.mount(
@@ -1277,6 +1392,8 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             await ml.mount(Static(Text(f"Failed to load history: {msgs}", style="red")))
             return
         await self._showMessages(ml, ch, msgs, acked if around is None else None, end=around is None)
+        if around is None:
+            self.scheduleSnapshot()
         last = getattr(ch, "last_message_id", None)
         if around is not None and msgs and last and msgs[-1].id < last:
             self.setDetached(True)
@@ -1287,12 +1404,17 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         self.scheduleAck(ch, 0.5)
 
     #keep the loading screen up until recent images are drawn so the view doesnt jump
-    async def _showMessages(self, ml, ch, msgs, acked, end: bool = True) -> None:
+    async def _showMessages(self, ml, ch, msgs, acked, end: bool = True, quick: bool = False) -> None:
         if not msgs:
             await ml.mount(
                 Static(Text(f"This is the start of {channelName(ch)}. Say hi!", style="bright_black"))
             )
             self.setLoading(False)
+            return
+        if quick:
+            await ml.mount_all(self.buildWidgets(msgs, None, newAfter=acked))
+            self.setLoading(False)
+            ml.call_after_refresh(ml.scroll_end, animate=False)
             return
         self.setLoading(True)
         gen = self._loadGen
@@ -1439,7 +1561,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         inp = self.query_one("#input", ChatInput)
         inp.value = m.content
         inp.cursor_position = len(m.content)
-        self._showCompose("✎ editing message   enter save · esc cancel")
+        self._showCompose(f"{icon('edit')} editing message   enter save · esc cancel")
 
     def _showCompose(self, text: str) -> None:
         c = self.query_one("#compose", Static)
@@ -1748,6 +1870,24 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             self.openChannel(ch)
         else:
             self.query_one("#sidebar", Tree).focus()
+        spawn(self.warmMembers())
+
+    #member lists for the open server first then the rest, one at a time so the gateway isnt flooded
+    async def warmMembers(self) -> None:
+        g = self.currentGuild()
+        order = ([g] if g is not None else []) + [x for x in self.client.guilds if g is None or x.id != g.id]
+        for guild in order:
+            if guild.unavailable or guild.chunked:
+                continue
+            try:
+                await asyncio.wait_for(guild.chunk(), max(5.0, (guild.member_count or 0) / 10000))
+            except Exception:
+                log.debug("member list for %s", guild.id, exc_info=True)
+                continue
+            cur = self.currentGuild()
+            if cur is not None and cur.id == guild.id:
+                self.refreshMembers()
+                self.refreshTitleRight()
 
     #new message either append it to the open chat or bump unread and maybe notify
     async def onDiscordMessage(self, m: discord.Message) -> None:
@@ -2079,6 +2219,8 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             log.debug("rich presence update", exc_info=True)
 
     async def action_quit(self) -> None:
+        if self._snapshotTimer is not None or self.current is not None:
+            self.saveSnapshot()
         if self.current is not None:
             try:
                 self.stashDraft(self.current)

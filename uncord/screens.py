@@ -16,10 +16,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
 
-try:
-    from . import _fast
-except ImportError:
-    _fast = None
+from . import _fast
 
 from .fmt import (PRIVATE, STATUS_NAME, activityText, humanSize, nameBadges, nameColour, platforms, snippet,
                   statusDot, userStatus)
@@ -54,9 +51,7 @@ class Picker(ModalScreen):
         self.initial = query
         self.titleText = title
         self._shown: List[int] = []
-        self._matcher = None
-        if _fast is not None and len(entries) > 200:
-            self._matcher = _fast.Matcher([hay for _l, hay, _v in entries])
+        self._matcher = _fast.Matcher([hay for _l, hay, _v in entries])
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="modal"):
@@ -73,28 +68,7 @@ class Picker(ModalScreen):
         ol = self.query_one(OptionList)
         ol.clear_options()
         q = q.lower().strip()
-        if self._matcher is not None:
-            self._shown = self._matcher.search(q, 250)
-            ol.add_options([Option(self.entries[i][0], id=str(i)) for i in self._shown])
-            if self._shown:
-                ol.highlighted = 0
-            return
-        words = q.split()
-        scored = []
-        for i, (_label, hay, _v) in enumerate(self.entries):
-            if not words:
-                scored.append((0, i))
-                continue
-            if all(w in hay for w in words):
-                scored.append((hay.find(words[0]) + (0 if hay.startswith(words[0]) else 50), i))
-            else:
-                it = iter(hay)
-                if all(c in it for c in q.replace(" ", "")):
-                    scored.append((1000 + len(hay), i))
-            if len(scored) > 4000:
-                break
-        scored.sort()
-        self._shown = [i for _s, i in scored[:250]]
+        self._shown = self._matcher.search(q, 250)
         ol.add_options([Option(self.entries[i][0], id=str(i)) for i in self._shown])
         if self._shown:
             ol.highlighted = 0

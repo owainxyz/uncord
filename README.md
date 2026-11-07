@@ -28,6 +28,8 @@ Questions or ideas? Join the [uncord Discord server](https://discord.gg/fubfK8C6
 
 uncord covers almost everything you'd do in the desktop app. You get servers, DMs, group DMs, threads and forums, with replies, edits, reactions, pins, search, and unread and mention counts. Messages render with markdown, highlighted code, embeds, server tags and APP badges, and the members list shows which device each person is on.
 
+uncord opens straight away: the chat you last had open and your server list are drawn from a local copy in about half a second, and swap to live ones as soon as Discord connects. Buttons and menus use Nerd Font icons when a Nerd Font is installed, and emoji otherwise (**Settings → Appearance → Icons**).
+
 Pictures, GIFs, stickers and custom emoji are drawn right in the terminal. They look sharpest in Kitty and Ghostty, and terminals with sixel support (foot, WezTerm, Konsole and others) work too.
 
 You can join voice channels and call people. Volume can be set per person, mic gain is automatic and you can turn your camera on. You can go live with one key or watch someone else's stream in the terminal. Calls and streams use Discord's DAVE end-to-end encryption, the same as the official app.
@@ -63,7 +65,7 @@ On NixOS, add the flake to your inputs with `inputs.uncord.url = "github:owainxy
 
 ### By hand
 
-First install the build tools: gcc, g++ and your distro's Python headers (usually `python3-dev` or `python3-devel`). For voice you also need ffmpeg, libopus and PipeWire. Then:
+First install the build tools: gcc, g++, Rust (`cargo`) and your distro's Python headers (usually `python3-dev` or `python3-devel`). For voice you also need ffmpeg, libopus and PipeWire. Then:
 
 ```sh
 python3 -m venv ~/.local/share/uncord/venv
@@ -238,7 +240,9 @@ Anything in a message, name or embed that would control your terminal (escape se
 
 Masked links show where they really go, with a ⚠ if the text claims to be a different site. Links whose address mixes normal letters with lookalikes from other alphabets, like `dіscord.com` with a Cyrillic `і`, get a ⚠ with the real address, and uncord always asks before opening one. That includes fakes written entirely in another alphabet, like `аррӏе.com`.
 
-Translate and Google Lens image search ask once before they first send anything to Google. Only http and https links open in your browser, and you can have uncord ask before it opens anything. Images, videos and voice messages only ever load through Discord's own servers, so a link in an embed can't get your IP address. Downloads are capped at 64 MB.
+Translate and Google Lens image search ask once before they first send anything to Google.
+
+To open instantly, uncord keeps a copy of the last chat you had open and your server list in `~/.cache/uncord/snapshot.json`, readable only by you. Turn it off with **Settings → Privacy → Show your last chat straight away**, which also deletes the copy. Logging out deletes it too. Only http and https links open in your browser, and you can have uncord ask before it opens anything. Images, videos and voice messages only ever load through Discord's own servers, so a link in an embed can't get your IP address. Downloads are capped at 64 MB.
 
 Your token is treated carefully:
 
@@ -296,7 +300,7 @@ There are four compiled extensions:
 - `_native.c` handles sixel encoding, kitty image chunks, ppm frames and h264 splitting.
 - `_dsp.cpp` handles Opus decoding, voice volume, mixing, levels and call sounds.
 - `_rtp.cpp` handles video depacketizing, the jitter buffer, rtcp and outgoing packets.
-- `rust/` is the Rust part (`uncord._fast`, built with PyO3), which handles searching in Ctrl+K and the other pickers. It's optional: without Rust installed, Python does the search instead.
+- `rust/` is the Rust part (`uncord._fast`, built with PyO3), which handles searching in Ctrl+K and the other pickers.
 
 The AUR and Nix packages are in `packaging/`. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [CHANGELOG.md](CHANGELOG.md) for what's changed. What's planned next is in [ROADMAP.md](ROADMAP.md).
 

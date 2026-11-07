@@ -2,10 +2,7 @@ import random
 import string
 import unittest
 
-try:
-    from uncord import _fast
-except ImportError:
-    _fast = None
+from uncord import _fast
 
 
 def pythonSearch(hays, q, limit=250):
@@ -24,7 +21,6 @@ def pythonSearch(hays, q, limit=250):
     return [i for _s, i in scored[:limit]]
 
 
-@unittest.skipUnless(_fast, "rust extension not built")
 class MatcherTest(unittest.TestCase):
 
     def testSameResultsAsPython(self):

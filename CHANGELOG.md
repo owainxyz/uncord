@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.02 (2026-11-07)
+
+- uncord opens much faster:
+  - the chat you last had open and your server list appear straight away (about 0.5 s) from a copy saved when you last used it, then swap to the live ones once Discord connects
+  - live is about 2.5 s instead of 4 s on an account with 64 servers. uncord no longer waits for every server's member list before showing anything (those load in the background, the open server first), it connects to Discord while your login is still being checked, and the last chat's messages download while Discord is still sending your account data
+  - the saved copy is readable only by you, can be turned off in **Settings → Privacy**, and is deleted when you log out
+- Buttons and menus use real icons instead of emoji: the voice panel, call bar, message menu, composer and user menus. They need a Nerd Font, and uncord uses emoji if none is installed. Choose in **Settings → Appearance → Icons**
+- Rust is now required to install uncord. The install script installs it, and the AUR and Nix packages already build it
+
 ## 1.01 (2026-11-07)
 
 - uncord now has a Rust part (`rust/`, built with PyO3). Searching in Ctrl+K, the emoji, sticker and GIF pickers and every other picker happens in Rust: 0.7 ms per key instead of 20 ms with 20,000 channels, people and servers, so typing in a big account doesn't lag

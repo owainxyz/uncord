@@ -146,6 +146,9 @@ def saveToken(tok: str) -> Path:
 
 
 def forgetToken() -> None:
+    from .snapshot import forget
+
+    forget()
     path = tokenFile()
     try:
         if path.is_file() and not path.is_symlink():
