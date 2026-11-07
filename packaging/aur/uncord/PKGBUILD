@@ -1,7 +1,7 @@
 # Maintainer: owainxyz <281472559+owainxyz@users.noreply.github.com>
 pkgname=uncord
 _pkgname=uncord
-pkgver=0.90
+pkgver=1.00
 pkgrel=1
 pkgdesc="Discord in your terminal, with voice calls, inline images and screen sharing"
 arch=('x86_64' 'aarch64')
@@ -18,7 +18,7 @@ optdepends=('chafa: faster, nicer inline images'
 conflicts=('uncord-git')
 options=('!strip' '!debug')
 source=("$_pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('17c2ce8937ca491c891f173f2deb485acbcb4b08cd01fd8457546f856fa14daa')
+sha256sums=('556be5ae10eedc2cd9b31cc5a6c87458faa75c9b7bf0901acec5a517a0519dbc')
 
 package() {
     # python deps like discord.py-self master and davey aren't in the repos, so they live in a private venv
