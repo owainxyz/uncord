@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import re
+import textwrap
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Callable, Optional
 from urllib.parse import urlsplit
 
@@ -302,6 +304,11 @@ INLINE = re.compile(
     re.S,
 )
 CODEBLOCK = re.compile(r"```(?:([\w+\-]*)\n)?(.*?)```", re.S)
+SPECIAL = re.compile(r"[`|*_~\[<@]|https?://")
+HEADING = re.compile(r"(#{1,3}) (.+)")
+BULLET = re.compile(r"(\s*)[-*] (.+)")
+NUMBERED = re.compile(r"(\s*)(\d{1,3})\. (.+)")
+BLOCKSTART = re.compile(r"^(?:>|#{1,3} |-# |\s*[-*] |\s*\d{1,3}\. )")
 
 
 class MdContext:
@@ -323,8 +330,11 @@ class MdContext:
 
 #[text](link) can say one site and open another, show where it really goes
 def maskedHint(label: str, url: str) -> Text:
-    from .safety import domain
+    from .safety import domain, lookalike
 
+    fake = lookalike(url)
+    if fake:
+        return Text(f" ⚠ lookalike link, really {fake}", style="bold #f23f43")
     real = domain(url)
     shown = re.search(r"(?:https?://)?((?:[\w-]+\.)+[a-z]{2,})", label, re.I)
     if shown and real:
@@ -336,7 +346,18 @@ def maskedHint(label: str, url: str) -> Text:
     return Text(f" ({real})", style="bright_black") if SHOW_LINK_DOMAINS and real else Text()
 
 
+def lookalikeHint(url: str) -> Text:
+    from .safety import lookalike
+
+    fake = lookalike(url)
+    return Text(f" ⚠ lookalike link, really {fake}", style="bold #f23f43") if fake else Text()
+
+
 def mdInline(text: str, ctx: MdContext, base: Style = Style()) -> Text:
+    if SPECIAL.search(text) is None:
+        plain = Text()
+        plain.append(text, style=base)
+        return plain
     out = Text()
     pos = 0
     for mt in INLINE.finditer(text):
@@ -369,6 +390,8 @@ def mdInline(text: str, ctx: MdContext, base: Style = Style()) -> Text:
         elif g["aurl"] is not None or g["url"] is not None:
             url = g["aurl"] or g["url"]
             out.append_text(link(shortUrl(url), url))
+            if not url.isascii() or "xn--" in url:
+                out.append_text(lookalikeHint(url))
         elif g["ename"] is not None:
             url = f"https://cdn.discordapp.com/emojis/{g['eid']}.{'gif' if g['anim'] else 'png'}"
             out.append_text(link(f":{g['ename']}:", url, EMOJI_STYLE))
@@ -416,19 +439,19 @@ def mdLines(text: str, ctx: MdContext) -> Text:
             out.append("▎ ", style="bright_black")
             out.append_text(mdInline(body, ctx, Style(color="bright_black") if not body else Style()))
             continue
-        m = re.match(r"(#{1,3}) (.+)", line)
+        m = HEADING.match(line)
         if m:
             out.append_text(mdInline(m.group(2), ctx, Style(bold=True, underline=len(m.group(1)) == 1)))
             continue
         if line.startswith("-# "):
             out.append_text(mdInline(line[3:], ctx, Style(dim=True)))
             continue
-        m = re.match(r"(\s*)[-*] (.+)", line)
+        m = BULLET.match(line)
         if m:
             out.append(m.group(1) + "• ")
             out.append_text(mdInline(m.group(2), ctx))
             continue
-        m = re.match(r"(\s*)(\d{1,3})\. (.+)", line)
+        m = NUMBERED.match(line)
         if m:
             out.append(f"{m.group(1)}{m.group(2)}. ", style="bright_black")
             out.append_text(mdInline(m.group(3), ctx))
@@ -439,6 +462,11 @@ def mdLines(text: str, ctx: MdContext) -> Text:
 
 #code blocks get syntax colours from pygments in the terminals own palette
 def highlight(code: str, lang: str) -> Text:
+    return _highlight(code, lang).copy()
+
+
+@lru_cache(maxsize=256)
+def _highlight(code: str, lang: str) -> Text:
     if lang:
         try:
             from rich.syntax import Syntax
@@ -452,6 +480,10 @@ def highlight(code: str, lang: str) -> Text:
 
 
 def markdown(text: str, ctx: MdContext) -> Text:
+    if "```" not in text:
+        fast = mdInline(text, ctx) if "\n" not in text and BLOCKSTART.match(text) is None else mdLines(text, ctx)
+        fast.rstrip()
+        return fast
     out = Text()
     pos = 0
     for mt in CODEBLOCK.finditer(text):
@@ -461,8 +493,6 @@ def markdown(text: str, ctx: MdContext) -> Text:
             out.append("\n")
         code = mt.group(2).strip("\n")
         if UNINDENT:
-            import textwrap
-
             code = textwrap.dedent(code)
         lang = (mt.group(1) or "").lower()
         if lang:
@@ -649,6 +679,7 @@ SHOW_USERNAMES = True
 SHOW_PLATFORMS = True
 REPLY_TIMESTAMP = True
 UNINDENT = True
+OWNER_CROWN = True
 SHOW_LINK_DOMAINS = True
 
 
@@ -699,6 +730,8 @@ def renderMessage(
     body = Text()
     if showName:
         body.append(m.author.display_name, style=Style(color=nameColour(m.author), bold=True))
+        if OWNER_CROWN and m.guild is not None and m.guild.owner_id == m.author.id and not m.webhook_id:
+            body.append(" 👑")
         uname = getattr(m.author, "name", "")
         if SHOW_USERNAMES and uname and uname.lower() != m.author.display_name.lower() and not m.webhook_id:
             body.append(f" @{uname}", style="bright_black")

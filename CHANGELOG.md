@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.90 (2026-11-07)
+
+- Five new plugins, 30 in total:
+  - **TextReplace** swaps words in messages you send. `/replace idk => i don't know` adds a swap, `/replace -idk` removes it and `/replace` lists them. Code blocks are left alone
+  - **SendTimestamps** turns `<t:18:30>`, `<t:2026-12-25 09:00>` or `<t:+2h>` into a Discord timestamp that everyone sees in their own time zone
+  - **KeywordNotify** notifies you when a message anywhere says one of your words, set with `/keywords`
+  - **FixEmbeds** (off to begin with) sends x.com, twitter.com and reddit.com links as fixupx, fxtwitter and rxddit links so they embed
+  - **OwnerCrown** shows 👑 next to the server owner
+- Messages draw about twice as fast. Plain messages skip the markdown parser entirely, the line patterns are compiled once, and highlighted code blocks are cached, so opening a busy channel or scrolling back through history is quicker. What you see is exactly the same as before
+- Lookalike links are caught: an address that mixes normal letters with ones from another alphabet (`dіscord.com` with a Cyrillic `і`) gets a ⚠ with its real address, in plain and masked links. uncord always asks before opening one, even with link confirmation off
+
 ## 0.80 (2026-11-02)
 
 - Drafts: whatever you've typed, the message you're replying to and any attached files stay with that chat when you switch away, and come back when you return. Typed drafts are kept when you quit too. Before, the text and files followed you into the next chat and could get sent to the wrong place

@@ -79,6 +79,28 @@ def safeUrl(url: str) -> Optional[str]:
     return url
 
 
+#a host part mixing latin with lookalike letters (dіscord.com with a cyrillic і) gives the real ascii name
+def lookalike(url: str) -> Optional[str]:
+    try:
+        host = urlsplit(url).hostname or ""
+    except ValueError:
+        return None
+    if not host:
+        return None
+    try:
+        real = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        real = host.encode("ascii", "backslashreplace").decode("ascii")
+    for label in real.split("."):
+        try:
+            shown = label.encode("ascii").decode("idna") if label.startswith("xn--") else label
+        except UnicodeError:
+            return real
+        if not shown.isascii() and any("a" <= c <= "z" or "0" <= c <= "9" for c in shown.lower()):
+            return real
+    return None
+
+
 def domain(url: str) -> str:
     try:
         host = urlsplit(url).hostname or ""

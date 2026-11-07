@@ -30,6 +30,11 @@ PLUGINS = (
     ("reply_timestamp", "ReplyTimestamp", "show when the message you're replying to was sent", True),
     ("valid_reply", "ValidReply", "fetch replied-to messages that aren't loaded instead of saying deleted", True),
     ("unindent", "Unindent", "trim the extra indent from code blocks", True),
+    ("text_replace", "TextReplace", "swap words in messages you send, set them with /replace", True),
+    ("send_timestamps", "SendTimestamps", "<t:18:30> or <t:+2h> become timestamps in everyone's own time", True),
+    ("keyword_notify", "KeywordNotify", "notify you when a message says one of your words, set them with /keywords", True),
+    ("fix_embeds", "FixEmbeds", "send x.com, twitter.com and reddit.com links as fxtwitter and rxddit so they embed", False),
+    ("owner_crown", "OwnerCrown", "show 👑 next to the server owner", True),
     ("moyai", "Moyai", "🗿", False),
 )
 DEFAULTS = {key: on for key, _n, _d, on in PLUGINS}
@@ -81,3 +86,75 @@ def _clean(url: str) -> str:
 
 def clearUrls(text: str) -> str:
     return _URL.sub(lambda m: _clean(m.group(0)), text)
+
+
+#textreplace
+
+def textReplace(text: str, rules: dict) -> str:
+    for old, new in (rules or {}).items():
+        if old:
+            text = re.sub(rf"(?<!\w){re.escape(old)}(?!\w)", lambda _m, n=new: n, text)
+    return text
+
+
+#sendtimestamps
+
+_STAMP = re.compile(r"<t:(?:(?P<date>\d{4}-\d{2}-\d{2}) )?(?P<h>\d{1,2}):(?P<m>\d{2})>|<t:\+(?P<n>\d{1,4})(?P<unit>[mhd])>")
+
+
+def sendTimestamps(text: str, now=None) -> str:
+    from datetime import datetime, timedelta
+
+    now = now or datetime.now().astimezone()
+
+    def stamp(mt: re.Match) -> str:
+        if mt.group("n"):
+            secs = int(mt.group("n")) * {"m": 60, "h": 3600, "d": 86400}[mt.group("unit")]
+            return f"<t:{int(now.timestamp()) + secs}:R>"
+        h, m = int(mt.group("h")), int(mt.group("m"))
+        if h > 23 or m > 59:
+            return mt.group(0)
+        if mt.group("date"):
+            try:
+                day = datetime.strptime(mt.group("date"), "%Y-%m-%d").replace(tzinfo=now.tzinfo)
+            except ValueError:
+                return mt.group(0)
+            return f"<t:{int(day.replace(hour=h, minute=m).timestamp())}:f>"
+        when = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if when < now - timedelta(minutes=1):
+            when += timedelta(days=1)
+        return f"<t:{int(when.timestamp())}:t>"
+
+    return _STAMP.sub(stamp, text)
+
+
+#keywordnotify
+
+def keywordHit(text: str, words) -> bool:
+    if not text or not words:
+        return False
+    low = text.lower()
+    return any(re.search(rf"(?<!\w){re.escape(w.lower())}(?!\w)", low) for w in words if w)
+
+
+#fixembeds
+
+_EMBED_HOSTS = {"x.com": "fixupx.com", "twitter.com": "fxtwitter.com", "reddit.com": "rxddit.com"}
+
+
+def _fixHost(url: str) -> str:
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return url
+    host = (parts.hostname or "").lower()
+    bare = host[4:] if host.startswith("www.") else host
+    bare = bare[4:] if bare.startswith("old.") else bare
+    swap = _EMBED_HOSTS.get(bare)
+    if swap is None or parts.port is not None:
+        return url
+    return urlunsplit(parts._replace(netloc=swap))
+
+
+def fixEmbeds(text: str) -> str:
+    return _URL.sub(lambda m: _fixHost(m.group(0)), text)

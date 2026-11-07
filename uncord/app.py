@@ -467,6 +467,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         fmt.SHOW_PLATFORMS = self.plugin("platform_icons")
         fmt.REPLY_TIMESTAMP = self.plugin("reply_timestamp")
         fmt.UNINDENT = self.plugin("unindent")
+        fmt.OWNER_CROWN = self.plugin("owner_crown")
         fmt.SHOW_LINK_DOMAINS = bool(self.cfg.get("show_link_domains", True))
 
     def on_mount(self) -> None:
@@ -1633,7 +1634,14 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
         g = self.currentGuild()
         pool = None
         parts = re.split(r"(```.*?```|`[^`]*`)", text, flags=re.S)
+        rules = (self.cfg.get("text_replace") or {}) if self.plugin("text_replace") else {}
         for i in range(0, len(parts), 2):
+            if rules:
+                parts[i] = plugins.textReplace(parts[i], rules)
+            if self.plugin("send_timestamps"):
+                parts[i] = plugins.sendTimestamps(parts[i])
+            if self.plugin("fix_embeds"):
+                parts[i] = plugins.fixEmbeds(parts[i])
 
             def mention(m: re.Match) -> str:
                 nonlocal pool
@@ -1780,7 +1788,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                     self.scheduleAck(ch, 2)
                 else:
                     self.localUnread[ch.id] = self.localUnread.get(ch.id, 0) + 1
-                    if (isinstance(ch, PRIVATE) or mentionsMe(m, self.meId)) and not isMuted(ch):
+                    if (isinstance(ch, PRIVATE) or mentionsMe(m, self.meId)) and not isMuted(ch) or self.keywordHit(m):
                         self.desktopNotify(m)
             if isinstance(ch, PRIVATE):
                 self.moveDmToTop(ch)
@@ -1791,7 +1799,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             return
         self.localUnread[ch.id] = self.localUnread.get(ch.id, 0) + 1
         isDm = isinstance(ch, PRIVATE)
-        pinged = mentionsMe(m, self.meId) and not isMuted(ch) or isDm and not isMuted(ch)
+        pinged = mentionsMe(m, self.meId) and not isMuted(ch) or isDm and not isMuted(ch) or self.keywordHit(m)
         if pinged:
             self.localMentions[ch.id] = self.localMentions.get(ch.id, 0) + 1
             where = channelName(ch) if isDm else f"#{channelName(ch)} ({ch.guild.name})"
@@ -1808,6 +1816,9 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
             if pnode is not None:
                 self.nodes[ch.id] = pnode.add_leaf(self.nodeLabel(ch), data=("chan", ch))
         self.relabel(ch)
+
+    def keywordHit(self, m: discord.Message) -> bool:
+        return self.plugin("keyword_notify") and plugins.keywordHit(m.content, self.cfg.get("keywords") or [])
 
     def moveDmToTop(self, ch) -> None:
         if self.dmRoot is None:

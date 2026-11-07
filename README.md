@@ -32,7 +32,7 @@ Pictures, GIFs, stickers and custom emoji are drawn right in the terminal. They 
 
 You can join voice channels and call people. Volume can be set per person, mic gain is automatic and you can turn your camera on. You can go live with one key or watch someone else's stream in the terminal. Calls and streams use Discord's DAVE end-to-end encryption, the same as the official app.
 
-It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 25 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Image and video packets are handled in C, and voice mixing and levels in C++.
+It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 30 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Image and video packets are handled in C, and voice mixing and levels in C++.
 
 ## Installing
 
@@ -160,7 +160,7 @@ Open settings with the ⚙ button by your name, **F3** or `/settings`. Changes t
 
 ## Plugins
 
-uncord has 25 small extras in the spirit of Vencord plugins. You can turn them on and off in **Settings → Plugins** or with `/plugins`.
+uncord has 30 small extras in the spirit of Vencord plugins. You can turn them on and off in **Settings → Plugins** or with `/plugins`.
 
 These are on to begin with:
 
@@ -179,6 +179,10 @@ These are on to begin with:
 - **ReplyTimestamp** shows when the message you're replying to was sent.
 - **ValidReply** fetches replied-to messages that aren't loaded instead of saying they were deleted.
 - **Unindent** trims the extra indent from code blocks.
+- **TextReplace** swaps words in messages you send. Add a swap with `/replace idk => i don't know`, remove it with `/replace -idk`, and list them with `/replace`.
+- **SendTimestamps** turns `<t:18:30>`, `<t:2026-12-25 09:00>` or `<t:+2h>` into a Discord timestamp, so everyone sees the time in their own time zone. A time that has already passed today means tomorrow.
+- **KeywordNotify** notifies you when a message anywhere says one of your words, even in a muted channel. Add one with `/keywords uncord`, remove it with `/keywords -uncord`, and list them with `/keywords`.
+- **OwnerCrown** shows 👑 next to the server owner.
 
 These are off to begin with:
 
@@ -188,6 +192,7 @@ These are off to begin with:
 - **NoBlockedMessages** hides messages from blocked people completely.
 - **ShowHiddenChannels** lists channels you can't read, with a 🔒.
 - **AnonymiseFileNames** uploads files with random names.
+- **FixEmbeds** sends x.com, twitter.com and reddit.com links as fixupx, fxtwitter and rxddit links so they get a proper embed.
 - **Moyai** 🗿
 
 ## Slash commands
@@ -202,6 +207,7 @@ Commands for **chatting**:
 - `/upload ~/file [caption]` sends a file. `/sticker` and `/emoji` open the pickers.
 - `/read` marks the current chat as read and `/readall` marks everything as read.
 - `/nick name` sets your nickname, and `/status` sets your status.
+- `/replace` and `/keywords` manage the TextReplace swaps and KeywordNotify words.
 
 Commands for **calls**:
 
@@ -231,7 +237,7 @@ Folders, the log, the theme, the voice gate and the paths to tools like ffmpeg a
 
 Anything in a message, name or embed that would control your terminal (escape sequences that write to your clipboard or change the window title, for example) is stripped out before it's drawn.
 
-Masked links show where they really go, with a ⚠ if the text claims to be a different site. Only http and https links open in your browser, and you can have uncord ask before it opens anything. Images, videos and voice messages only ever load through Discord's own servers, so a link in an embed can't get your IP address. Downloads are capped at 64 MB.
+Masked links show where they really go, with a ⚠ if the text claims to be a different site. Links whose address mixes normal letters with lookalikes from other alphabets, like `dіscord.com` with a Cyrillic `і`, get a ⚠ with the real address, and uncord always asks before opening one. Only http and https links open in your browser, and you can have uncord ask before it opens anything. Images, videos and voice messages only ever load through Discord's own servers, so a link in an embed can't get your IP address. Downloads are capped at 64 MB.
 
 Your token is treated carefully:
 
@@ -278,7 +284,7 @@ There are three compiled extensions:
 - `_dsp.cpp` handles voice volume, mixing, levels and call sounds.
 - `_rtp.cpp` handles video depacketizing, the jitter buffer, rtcp and outgoing packets.
 
-The AUR and Nix packages are in `packaging/`. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [CHANGELOG.md](CHANGELOG.md) for what's changed.
+The AUR and Nix packages are in `packaging/`. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [CHANGELOG.md](CHANGELOG.md) for what's changed. What's planned for 1.0 is in [ROADMAP.md](ROADMAP.md).
 
 Still to do: put `uncord` and `uncord-git` on the AUR (the packages are ready in `packaging/aur/`, but AUR sign-ups are down), and get uncord into nixpkgs once it's been around a while.
 

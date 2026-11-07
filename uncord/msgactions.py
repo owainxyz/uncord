@@ -53,6 +53,11 @@ class MessageActionsMixin:
             self.notify("That isn't a web link so it wasn't opened. Copied it instead.", severity="warning",
                         markup=False)
             return
+        fake = safety.lookalike(safe)
+        if fake and not confirmed:
+            self.push_screen(Confirm(f"{safety.domain(safe)} uses lookalike letters, it's really {fake}. Open anyway?", safe),
+                             lambda yes: yes and self.openExternal(safe, confirmed=True))
+            return
         if self.cfg.get("confirm_links", False) and not confirmed:
             self.push_screen(Confirm(f"Open {safety.domain(safe)}?", safe),
                              lambda yes: yes and self.openExternal(safe, confirmed=True))
