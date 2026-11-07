@@ -1,6 +1,6 @@
 pkgbase = uncord
 	pkgdesc = Discord in your terminal, with voice calls, inline images and screen sharing
-	pkgver = 0.75b
+	pkgver = 0.90
 	pkgrel = 1
 	url = https://github.com/owainxyz/uncord
 	arch = x86_64
@@ -21,7 +21,7 @@ pkgbase = uncord
 	conflicts = uncord-git
 	options = !strip
 	options = !debug
-	source = uncord-0.75b.tar.gz::https://github.com/owainxyz/uncord/archive/refs/tags/v0.75b.tar.gz
-	sha256sums = a07e7344cda6ccdeaecb15535b09e85eaca7122e4eaf33a5d84d835c9261d403
+	source = uncord-0.90.tar.gz::https://github.com/owainxyz/uncord/archive/refs/tags/v0.90.tar.gz
+	sha256sums = 17c2ce8937ca491c891f173f2deb485acbcb4b08cd01fd8457546f856fa14daa
 
 pkgname = uncord
