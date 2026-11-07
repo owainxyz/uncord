@@ -19,7 +19,7 @@ from discord.voice_media import VoiceCodec, VoiceStream, VoiceStreamResolution
 from discord.voice_state import ConnectionFlowState, VoiceConnectionState
 
 from .deps import FFMPEG, GSR, MPV
-from . import _native as native, _rtp, rtpvideo
+from . import _fast as native, _rtp, rtpvideo
 from .tasks import spawn
 
 try:

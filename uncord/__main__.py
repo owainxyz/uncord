@@ -116,11 +116,11 @@ def main() -> None:
     private(CONFIG, isDir=True)
     private(TOKEN_FILE)
     try:
-        for mod in ("uncord._native", "uncord._dsp", "uncord._rtp"):
+        for mod in ("uncord._fast", "uncord._dsp", "uncord._rtp"):
             importlib.import_module(mod)
     except ImportError:
-        sys.exit("uncord's C and C++ parts aren't built. Reinstall with gcc, g++ and the python headers installed "
-                 "(./install.sh does this), or run: python setup.py build_ext --inplace")
+        sys.exit("uncord's C++ and Rust parts aren't built. Reinstall with g++, cargo and the python headers installed "
+                 "(./install.sh does this), or run: python setup.py build_ext build_rust --inplace --release")
     #a fresh login wins over UNCORD_TOKEN, which still gets dropped from the environment
     if fresh:
         env.dropSecrets()

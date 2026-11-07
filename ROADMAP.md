@@ -11,13 +11,14 @@
 - [x] Plugin options in Settings instead of slash commands
 - [x] Rust (PyO3) for picker search, 28× faster (1.01)
 - [x] Startup: last chat drawn from a snapshot in about 0.5 s, live in about 2.5 s instead of 4 s (1.02)
+- [x] Message rendering, sixel and Kitty images, H.264, RTP and ffmpeg frame parsing moved to Rust; the C part is gone (1.03)
 
 ## After 1.0
 
 Where the time goes now: most of what's left is Textual and Rich laying out widgets, Discord's own login data, and Python glue around libraries that are already native. These are the next steps, measured with `bench/` before and after:
 
 - [ ] **Gateway events off the UI thread.** Parse and filter Discord's event stream in the background, so a flood of messages in a big server can't stall typing
-- [ ] **Native message spans.** Build the coloured spans for a message in one Rust pass instead of piece by piece in Python
+- [ ] **Video in Rust.** Move `_rtp.cpp` (depacketizers, jitter buffer, RTCP) to Rust, since it parses packets from other people
 - [ ] **Native Opus encoding** for your own mic, matching the decoder
 - [ ] **Prebuilt wheels** so installing doesn't need a compiler
 - [ ] **Stable AUR and Nix packages** that follow tagged releases

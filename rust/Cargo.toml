@@ -11,6 +11,9 @@ path = "src/lib.rs"
 
 [dependencies]
 pyo3 = { version = "0.27", features = ["extension-module", "abi3-py310"] }
+fancy-regex = "0.14"
+regex = "1"
+memchr = "2"
 
 [profile.release]
 opt-level = 3

@@ -24,7 +24,7 @@ from textual.screen import Screen
 from textual.strip import Strip
 from textual.widget import Widget
 
-from . import _native as native, chafasixel, sixelview
+from . import _fast as native, chafasixel, sixelview
 
 log = logging.getLogger("uncord")
 _DIM = Style(color="bright_black")

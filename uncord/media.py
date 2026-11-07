@@ -13,7 +13,7 @@ import discord
 
 log = logging.getLogger("uncord")
 
-from . import _native as native
+from . import _fast as native
 from .deps import FFMPEG, MPV
 from .tasks import spawn
 
@@ -344,7 +344,7 @@ async def videoFrames(
     return await asyncio.to_thread(_ppmFrames, out, 1 / fps)
 
 
-#ffmpeg's image2pipe ppm output split into frames, the parsing is in _native.c
+#ffmpeg's image2pipe ppm output split into frames, the parsing is in rust (rust/src/native.rs)
 def _ppmFrames(data: bytes, dur: float) -> List[Tuple[object, float]]:
     from PIL import Image as PILImage
 

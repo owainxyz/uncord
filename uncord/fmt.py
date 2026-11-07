@@ -7,7 +7,6 @@ import textwrap
 from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Callable, Optional
-from urllib.parse import urlsplit
 
 import discord
 from rich.color import Color, ColorSystem
@@ -16,7 +15,9 @@ from rich.measure import Measurement
 from rich.segment import Segment
 from rich.style import Style
 from rich.table import Table
-from rich.text import Text
+from rich.text import Span, Text
+
+from . import _fast
 
 NAME_COLOURS = [
     "red",
@@ -241,15 +242,7 @@ def humanSize(n: float) -> str:
 
 
 def shortUrl(url: str) -> str:
-    u = urlsplit(url)
-    host = u.netloc.removeprefix("www.")
-    path = u.path.rstrip("/")
-    if ("discordapp" in host or "discord.com" in host) and "/attachments/" in path:
-        return path.rsplit("/", 1)[-1] or host
-    if u.query and host.endswith(("youtube.com", "google.com")):
-        path += "?" + u.query
-    label = host + path
-    return label if len(label) <= 42 else label[:41] + "…"
+    return _fast.shortUrl(url)
 
 
 def link(text: str, url: str, base: Optional[Style] = None) -> Text:
@@ -327,6 +320,31 @@ class MdContext:
         self.get_channel = get_channel or (lambda _id: None)
         self.reveal = revealSpoilers
 
+    #the rust renderer calls back here for names, times and link warnings
+    def resolve(self, kind: str, a: str, b: Optional[str]):
+        if kind == "user":
+            uid = int(a)
+            u = self.users.get(uid)
+            return f"@{u.display_name if u is not None else 'unknown-user'}", _look(MENTION_ME if uid == self.meId else MENTION)
+        if kind == "role":
+            r = self.roles.get(int(a))
+            colour = termColour(getattr(r, "colour", None)) if r is not None else None
+            return f"@{r.name if r is not None else 'deleted-role'}", _look(Style(color=colour or "cyan", bold=True))
+        if kind == "channel":
+            ch = self.get_channel(int(a))
+            return f"#{channelName(ch) if ch is not None else 'unknown'}", _look(MENTION)
+        if kind == "command":
+            return f"/{a}", _look(MENTION)
+        if kind == "everyone":
+            return a, _look(MENTION_ME)
+        if kind == "ts":
+            try:
+                return formatTs(int(a), b), _NOLOOK
+            except (ValueError, OverflowError, OSError):
+                return None
+        hint = maskedHint(a, b) if kind == "masked" else lookalikeHint(a)
+        return (hint.plain, _look(hint.style)) if hint.plain else None
+
 
 #[text](link) can say one site and open another, show where it really goes
 def maskedHint(label: str, url: str) -> Text:
@@ -346,6 +364,35 @@ def maskedHint(label: str, url: str) -> Text:
     return Text(f" ({real})", style="bright_black") if SHOW_LINK_DOMAINS and real else Text()
 
 
+_NOLOOK = (None,) * 8
+_STYLES: dict = {}
+
+
+def _look(style) -> tuple:
+    if isinstance(style, str):
+        style = Style.parse(style)
+    return (style.bold, style.dim, style.italic, style.underline, style.strike,
+            style.color.name if style.color else None, style.bgcolor.name if style.bgcolor else None, style.link)
+
+
+def _style(look: tuple) -> Style:
+    st = _STYLES.get(look)
+    if st is None:
+        if len(_STYLES) > 4096:
+            _STYLES.clear()
+        bold, dim, italic, underline, strike, color, bgcolor, link = look
+        st = _STYLES[look] = Style(bold=bold, dim=dim, italic=italic, underline=underline, strike=strike,
+                                   color=color, bgcolor=bgcolor, link=link)
+    return st
+
+
+def _fromRust(result) -> Text:
+    plain, spans = result
+    t = Text(plain)
+    t.spans = [Span(start, end, _style(look)) for start, end, look in spans]
+    return t
+
+
 def lookalikeHint(url: str) -> Text:
     from .safety import lookalike
 
@@ -354,110 +401,11 @@ def lookalikeHint(url: str) -> Text:
 
 
 def mdInline(text: str, ctx: MdContext, base: Style = Style()) -> Text:
-    if SPECIAL.search(text) is None:
-        plain = Text()
-        plain.append(text, style=base)
-        return plain
-    out = Text()
-    pos = 0
-    for mt in INLINE.finditer(text):
-        if mt.start() > pos:
-            out.append(text[pos : mt.start()], style=base)
-        pos = mt.end()
-        g = mt.groupdict()
-        if g["codebody"] is not None:
-            out.append(g["codebody"].strip("`") if g["code"] == "`" else g["codebody"], style=base + CODE)
-        elif g["spoiler"] is not None:
-            inner = mdInline(g["spoiler"], ctx, base)
-            if ctx.reveal:
-                inner.stylize(Style(underline=True, color="bright_black"))
-                out.append_text(inner)
-            else:
-                out.append("▒" * max(3, min(len(inner.plain), 40)), style=SPOILER)
-        elif g["bi"] is not None:
-            out.append_text(mdInline(g["bi"], ctx, base + Style(bold=True, italic=True)))
-        elif g["b"] is not None:
-            out.append_text(mdInline(g["b"], ctx, base + Style(bold=True)))
-        elif g["u"] is not None:
-            out.append_text(mdInline(g["u"], ctx, base + Style(underline=True)))
-        elif g["i"] is not None or g["i2"] is not None:
-            out.append_text(mdInline(g["i"] or g["i2"], ctx, base + Style(italic=True)))
-        elif g["s"] is not None:
-            out.append_text(mdInline(g["s"], ctx, base + Style(strike=True)))
-        elif g["ltext"] is not None:
-            out.append_text(link(g["ltext"], g["lurl"]))
-            out.append_text(maskedHint(g["ltext"], g["lurl"]))
-        elif g["aurl"] is not None or g["url"] is not None:
-            url = g["aurl"] or g["url"]
-            out.append_text(link(shortUrl(url), url))
-            if not url.isascii() or "xn--" in url:
-                out.append_text(lookalikeHint(url))
-        elif g["ename"] is not None:
-            url = f"https://cdn.discordapp.com/emojis/{g['eid']}.{'gif' if g['anim'] else 'png'}"
-            out.append_text(link(f":{g['ename']}:", url, EMOJI_STYLE))
-        elif g["ts"] is not None:
-            try:
-                out.append(formatTs(int(g["ts"]), g["tsfmt"]), style=base + Style(underline=True))
-            except (ValueError, OverflowError, OSError):
-                out.append(mt.group(), style=base)
-        elif g["uid"] is not None:
-            uid = int(g["uid"])
-            u = ctx.users.get(uid)
-            name = u.display_name if u is not None else "unknown-user"
-            out.append(f"@{name}", style=MENTION_ME if uid == ctx.meId else MENTION)
-        elif g["rid"] is not None:
-            r = ctx.roles.get(int(g["rid"]))
-            colour = termColour(getattr(r, "colour", None)) if r is not None else None
-            out.append(
-                f"@{r.name if r is not None else 'deleted-role'}",
-                style=Style(color=colour or "cyan", bold=True),
-            )
-        elif g["cid"] is not None:
-            ch = ctx.get_channel(int(g["cid"]))
-            out.append(f"#{channelName(ch) if ch is not None else 'unknown'}", style=MENTION)
-        elif g["cmd"] is not None:
-            out.append(f"/{g['cmd']}", style=MENTION)
-        elif g["everyone"] is not None:
-            out.append(g["everyone"], style=MENTION_ME)
-    if pos < len(text):
-        out.append(text[pos:], style=base)
-    return out
+    return _fromRust(_fast.mdInline(text, ctx.resolve, ctx.reveal, _look(base) if base else None))
 
 
 def mdLines(text: str, ctx: MdContext) -> Text:
-    out = Text()
-    lines = text.split("\n")
-    inBlockQuote = False
-    for i, line in enumerate(lines):
-        if i:
-            out.append("\n")
-        if line.startswith(">>> "):
-            inBlockQuote = True
-            line = line[4:]
-        if inBlockQuote or line.startswith("> ") or line == ">":
-            body = line if inBlockQuote else line[2:]
-            out.append("▎ ", style="bright_black")
-            out.append_text(mdInline(body, ctx, Style(color="bright_black") if not body else Style()))
-            continue
-        m = HEADING.match(line)
-        if m:
-            out.append_text(mdInline(m.group(2), ctx, Style(bold=True, underline=len(m.group(1)) == 1)))
-            continue
-        if line.startswith("-# "):
-            out.append_text(mdInline(line[3:], ctx, Style(dim=True)))
-            continue
-        m = BULLET.match(line)
-        if m:
-            out.append(m.group(1) + "• ")
-            out.append_text(mdInline(m.group(2), ctx))
-            continue
-        m = NUMBERED.match(line)
-        if m:
-            out.append(f"{m.group(1)}{m.group(2)}. ", style="bright_black")
-            out.append_text(mdInline(m.group(3), ctx))
-            continue
-        out.append_text(mdInline(line, ctx))
-    return out
+    return _fromRust(_fast.mdLines(text, ctx.resolve, ctx.reveal))
 
 
 #code blocks get syntax colours from pygments in the terminals own palette
@@ -481,7 +429,7 @@ def _highlight(code: str, lang: str) -> Text:
 
 def markdown(text: str, ctx: MdContext) -> Text:
     if "```" not in text:
-        fast = mdInline(text, ctx) if "\n" not in text and BLOCKSTART.match(text) is None else mdLines(text, ctx)
+        fast = mdLines(text, ctx)
         fast.rstrip()
         return fast
     out = Text()

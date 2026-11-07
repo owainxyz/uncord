@@ -141,7 +141,7 @@ py.buildPythonApplication {
     install -Dm644 packaging/uncord.desktop $out/share/applications/uncord.desktop
   '';
 
-  pythonImportsCheck = [ "uncord" "uncord._native" "uncord._dsp" "uncord._rtp" "uncord._fast" ];
+  pythonImportsCheck = [ "uncord" "uncord._dsp" "uncord._rtp" "uncord._fast" ];
 
   passthru = { inherit davey discord-protos discord-py-self; };
 

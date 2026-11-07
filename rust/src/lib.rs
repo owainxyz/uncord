@@ -1,3 +1,7 @@
+#![allow(non_snake_case)]
+mod md;
+mod native;
+
 use pyo3::prelude::*;
 
 struct Entry {
@@ -80,5 +84,17 @@ impl Matcher {
 #[pymodule]
 fn _fast(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Matcher>()?;
+    m.add_function(wrap_pyfunction!(md::mdLines, m)?)?;
+    m.add_function(wrap_pyfunction!(md::mdInline, m)?)?;
+    m.add_function(wrap_pyfunction!(md::shortUrlPy, m)?)?;
+    m.add_function(wrap_pyfunction!(native::hasPixels, m)?)?;
+    m.add_function(wrap_pyfunction!(native::placeholderRow, m)?)?;
+    m.add_function(wrap_pyfunction!(native::splitAnnexb, m)?)?;
+    m.add_function(wrap_pyfunction!(native::fuaPayloads, m)?)?;
+    m.add_function(wrap_pyfunction!(native::rtpHeader, m)?)?;
+    m.add_function(wrap_pyfunction!(native::sixel, m)?)?;
+    m.add_function(wrap_pyfunction!(native::kittyChunks, m)?)?;
+    m.add_function(wrap_pyfunction!(native::ppmFrames, m)?)?;
+    m.add("maxCells", native::MAX_CELLS)?;
     Ok(())
 }

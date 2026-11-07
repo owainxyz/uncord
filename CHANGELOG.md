@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.03 (2026-11-07)
+
+- Much more of uncord is Rust now:
+  - message rendering (markdown, spoilers, links, mentions, timestamps, quotes, headings and lists) is done in Rust, about 25% faster than before. It gives exactly the same output as the old Python renderer, checked against it on thousands of messages
+  - sixel and Kitty image encoding, ffmpeg frame parsing, and H.264 and RTP packet parsing moved from C to Rust, so everything that reads data other people send is memory safe. Sixel encoding is about 20% faster and Kitty uploads about as fast as before. The output is byte for byte the same, and the C part is gone
+- A link like `https://[x` in a message no longer breaks drawing that message
+
 ## 1.02 (2026-11-07)
 
 - uncord opens much faster:
