@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.00 (2026-11-07)
+
+uncord 1.0 is about speed, safety and being easier to work on.
+
+- Voice is decoded in C++ instead of through Python's ctypes: about 2.3× faster per person talking (45 µs instead of 102 µs for each 20 ms of audio), and it no longer holds up the rest of the app while it decodes. Stream audio uses it too. The sound is bit-for-bit the same
+- Messages draw faster again: 7.9 µs each in the benchmark, down from 21 µs in 0.80
+- TextReplace swaps and KeywordNotify words are set in **Settings → Plugins**, in a box under each plugin, instead of with `/replace` and `/keywords`
+- Lookalike links written entirely in another alphabet, like `аррӏе.com` in Cyrillic, are caught too, not just ones that mix alphabets
+- Translate and Google Lens image search ask once before they first send anything to Google
+- A display name with `$` in it can't run mpv property expansions in the pop-out window title
+- A test suite (`tests/`, 30 tests that never log in), benchmarks (`bench/`) and [AGENTS.md](AGENTS.md) with the conventions for code, docs and releases
+
 ## 0.90 (2026-11-07)
 
 - Five new plugins, 30 in total:

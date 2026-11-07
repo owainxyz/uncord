@@ -48,9 +48,38 @@ def load_opus() -> bool:
         return False
     try:
         opus.load_opus(OPUS)
-        return True
     except OSError:
         return False
+    _loadNativeOpus()
+    return True
+
+
+_nativeOpus = False
+
+
+def _loadNativeOpus() -> None:
+    global _nativeOpus
+    try:
+        _nativeOpus = bool(_dsp.opusLoad(opus._lib._name))
+    except Exception:
+        log.debug("native opus", exc_info=True)
+
+
+class NativeDecoder:
+
+    __slots__ = ("state",)
+
+    def __init__(self) -> None:
+        self.state = _dsp.opusDecoder()
+
+    def decode(self, data, fec: bool = False) -> bytes:
+        return _dsp.opusDecode(self.state, data, fec)
+
+
+def newDecoder():
+    if not _nativeOpus and opus.is_loaded():
+        _loadNativeOpus()
+    return NativeDecoder() if _nativeOpus else opus.Decoder()
 
 
 def _pwArgs(tool: str, name: str, latency: str, target: Optional[str] = None) -> list:
@@ -321,7 +350,7 @@ class UncordVoiceClient(discord.VoiceClient):
         self._sealLock = threading.Lock()
         super().__init__(client, channel)
         self.ssrcToUser: Dict[int, int] = {}
-        self.decoders: Dict[int, opus.Decoder] = {}
+        self.decoders: Dict[int, "NativeDecoder | opus.Decoder"] = {}
         self.lastSeq: Dict[int, int] = {}
         self._aead = None
         self._aeadKey = b""
@@ -591,7 +620,7 @@ class UncordVoiceClient(discord.VoiceClient):
 
         dec = self.decoders.get(ssrc)
         if dec is None:
-            dec = self.decoders[ssrc] = opus.Decoder()
+            dec = self.decoders[ssrc] = newDecoder()
             lost = 0
         gain = self.userVolume.get(uid, 1.0) if uid is not None else 1.0
         if 0 < lost <= 5 and gain > 0:

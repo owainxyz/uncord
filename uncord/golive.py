@@ -1261,7 +1261,7 @@ class StreamDecoder:
                 "--demuxer-lavf-analyzeduration=0",
                 "--no-audio",
                 "--hwdec=auto-safe",
-                f"--title={title}",
+                "--title=" + title.replace("$", "$$"),
                 "--force-window=immediate",
                 "--keep-open=no",
                 "--osc=no",

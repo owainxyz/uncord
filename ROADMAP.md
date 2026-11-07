@@ -1,33 +1,25 @@
-# Road to 1.0
+# Roadmap
 
-0.90 is the last big feature release before 1.0. 1.0 is about speed and stability more than new features: the busy parts move out of Python into compiled code, and everything gets tests.
+## Done in 1.0
 
-## Speed
+- [x] Opus decoding in C++ (`_dsp.cpp`), 2.3× faster than the ctypes path and bit-for-bit the same
+- [x] Message rendering about 2.7× faster than 0.80 (fast paths for plain text, compiled patterns, cached code highlighting)
+- [x] A test suite for rendering, plugins, the safety helpers, plugin settings and Opus, which never logs in
+- [x] Benchmarks for rendering and Opus decoding
+- [x] Lookalike links in mixed or entirely different alphabets
+- [x] A one-time prompt before Translate or Google Lens sends anything to Google
+- [x] Plugin options in Settings instead of slash commands
 
-uncord already does video packets and sixel in C (`_native.c`, `_rtp.cpp`) and audio mixing in C++ (`_dsp.cpp`). 1.0 moves the rest of the hot paths over:
+## After 1.0
 
-- [ ] **Message rendering in Rust.** Markdown, mentions, timestamps and link parsing become one native parser (PyO3) that returns ready-made spans. 0.90's fast paths made rendering about 2× faster; the goal for 1.0 is another 5× on busy channels
-- [ ] **Gateway events off the UI thread.** Parse and filter Discord's event stream natively, so a flood of messages in a big server can't stall typing or scrolling
-- [ ] **Opus decode and encode in native code.** Decode straight into the C++ mixer with no Python per packet, so calls with lots of people use less CPU
-- [ ] **Image pipeline in native code.** Decode, scale and encode for sixel and Kitty without round trips through Pillow, with images reused between scrolls
-- [ ] **Faster startup.** Lazy-load voice, video and plugins, and cache the sidebar from the last session, so the window is usable before the gateway is ready
-- [ ] **Bounded memory.** Hard caps on cached messages, images and members per server, with old entries dropped first
+Where the time goes now: most of what's left is Textual and Rich laying out widgets, Discord's own login data, and Python glue around libraries that are already native. These are the next steps, measured with `bench/` before and after:
 
-## Stability
-
-- [ ] A test suite for rendering, slash commands, plugins and the safety helpers, run before every release
-- [ ] Benchmarks for rendering, startup and voice CPU, so a release can't get slower without anyone noticing
-- [ ] Reconnects that keep your place: open chat, drafts, scroll position and call
-
-## Install
-
-- [ ] Prebuilt wheels with the native parts compiled, so installing doesn't need gcc, g++ or Rust
-- [ ] Stable AUR and Nix packages that follow tagged releases
-
-## Security
-
-- [ ] Run ffmpeg and mpv with only the access they need (no network for local files, no home directory)
-- [ ] A permission check for plugins that send data anywhere (Translate, ReverseImageSearch), shown the first time they're used
-- [ ] Wider lookalike link detection, including addresses written entirely in another alphabet
+- [ ] **Faster startup.** Show the sidebar from the last session straight away instead of waiting for Discord's login data
+- [ ] **Gateway events off the UI thread.** Parse and filter Discord's event stream in the background, so a flood of messages in a big server can't stall typing
+- [ ] **Native message spans.** Build the coloured spans for a message in one native pass (Rust or C++) instead of piece by piece in Python
+- [ ] **Native Opus encoding** for your own mic, matching the decoder
+- [ ] **Prebuilt wheels** so installing doesn't need a compiler
+- [ ] **Stable AUR and Nix packages** that follow tagged releases
+- [ ] **Tighter sandboxing** for ffmpeg and mpv
 
 Ideas and bug reports are welcome on the [issue tracker](https://github.com/owainxyz/uncord/issues) or the [uncord Discord server](https://discord.gg/fubfK8C6Cm).

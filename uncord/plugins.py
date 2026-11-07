@@ -30,9 +30,9 @@ PLUGINS = (
     ("reply_timestamp", "ReplyTimestamp", "show when the message you're replying to was sent", True),
     ("valid_reply", "ValidReply", "fetch replied-to messages that aren't loaded instead of saying deleted", True),
     ("unindent", "Unindent", "trim the extra indent from code blocks", True),
-    ("text_replace", "TextReplace", "swap words in messages you send, set them with /replace", True),
+    ("text_replace", "TextReplace", "swap words in messages you send, set the swaps below", True),
     ("send_timestamps", "SendTimestamps", "<t:18:30> or <t:+2h> become timestamps in everyone's own time", True),
-    ("keyword_notify", "KeywordNotify", "notify you when a message says one of your words, set them with /keywords", True),
+    ("keyword_notify", "KeywordNotify", "notify you when a message says one of your words, set them below", True),
     ("fix_embeds", "FixEmbeds", "send x.com, twitter.com and reddit.com links as fxtwitter and rxddit so they embed", False),
     ("owner_crown", "OwnerCrown", "show 👑 next to the server owner", True),
     ("moyai", "Moyai", "🗿", False),
@@ -95,6 +95,33 @@ def textReplace(text: str, rules: dict) -> str:
         if old:
             text = re.sub(rf"(?<!\w){re.escape(old)}(?!\w)", lambda _m, n=new: n, text)
     return text
+
+
+MAX_RULES = 100
+MAX_KEYWORDS = 50
+
+
+def parseRules(text: str) -> dict:
+    rules = {}
+    for part in (text or "").split(";"):
+        old, sep, new = part.partition("=>")
+        old, new = old.strip(), new.strip()
+        if sep and old and len(old) <= 100 and len(new) <= 500 and len(rules) < MAX_RULES:
+            rules[old] = new
+    return rules
+
+
+def formatRules(rules: dict) -> str:
+    return "; ".join(f"{k} => {v}" for k, v in (rules or {}).items())
+
+
+def parseKeywords(text: str) -> list:
+    out = []
+    for w in (text or "").split(","):
+        w = w.strip().lower()
+        if w and len(w) <= 64 and w not in out and len(out) < MAX_KEYWORDS:
+            out.append(w)
+    return out
 
 
 #sendtimestamps

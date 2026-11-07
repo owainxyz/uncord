@@ -306,10 +306,12 @@ class MessageActionsMixin:
                 "pin": lambda: self.togglePin(m),
                 "dm": lambda: self.openDm(m.author),
                 "profile": lambda: self.showProfile(m.author),
-                "translate": lambda: self.translateMessage(m),
+                "translate": lambda: self.withConsent("translate", "Translate sends this message's text to Google "
+                                                      "Translate.", lambda: self.translateMessage(m)),
                 "reacted": lambda: self.whoReacted(m),
-                "lens": lambda: self.openExternal(
-                    "https://lens.google.com/uploadbyurl?url=" + quote(images[0].url, safe="")),
+                "lens": lambda: self.withConsent("lens", "Image search sends this image's link to Google Lens.",
+                                                 lambda: self.openExternal("https://lens.google.com/uploadbyurl?url="
+                                                                           + quote(images[0].url, safe=""))),
                 "raw": lambda: self.viewRaw(m),
             }.get(act, lambda: None)()
 
@@ -321,6 +323,24 @@ class MessageActionsMixin:
             ),
             done,
         )
+
+    #plugins that send something to another company ask once before the first time
+    def withConsent(self, key: str, what: str, run) -> None:
+        agreed = dict(self.cfg.get("consented") or {})
+        if agreed.get(key):
+            run()
+            return
+
+        def done(yes) -> None:
+            if not yes:
+                return
+            agreed[key] = True
+            self.cfg["consented"] = agreed
+            self.cfg.save()
+            run()
+
+        self.push_screen(Confirm(what + " Go ahead? You won't be asked again.", "you can turn the plugin off in "
+                                 "Settings → Plugins"), done)
 
     #translate plugin uses the same free google endpoint as vencord
     @work(group="translate")

@@ -1,6 +1,7 @@
 //audio maths for voice: 16 bit pcm gain, mixing, levels and the call sounds
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#include <dlfcn.h>
 
 #include <algorithm>
 #include <cmath>
@@ -199,6 +200,121 @@ PyObject *tones(PyObject *, PyObject *args) {
     });
 }
 
+//opus decoding straight from libopus, the ctypes wrapper spends more time converting than decoding
+struct OpusApi {
+    void *(*create)(int32_t, int, int *) = nullptr;
+    int (*decode)(void *, const unsigned char *, int32_t, int16_t *, int, int) = nullptr;
+    int (*ctl)(void *, int, ...) = nullptr;
+    void (*destroy)(void *) = nullptr;
+    int (*nbFrames)(const unsigned char *, int32_t) = nullptr;
+    int (*samplesPerFrame)(const unsigned char *, int32_t) = nullptr;
+};
+
+OpusApi opusApi;
+constexpr int OPUS_RATE = 48000, OPUS_CHANNELS = 2, OPUS_FRAME = 960, OPUS_MAX_FRAME = 5760;
+constexpr int CTL_LAST_PACKET_DURATION = 4039;
+const char *DECODER_NAME = "uncord.opus.decoder";
+
+template <typename F>
+bool bind(void *lib, const char *name, F &out) {
+    out = reinterpret_cast<F>(dlsym(lib, name));
+    return out != nullptr;
+}
+
+PyObject *opusLoad(PyObject *, PyObject *args) {
+    const char *path;
+    if (!PyArg_ParseTuple(args, "s", &path))
+        return nullptr;
+    if (opusApi.decode)
+        Py_RETURN_TRUE;
+    void *lib = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!lib)
+        Py_RETURN_FALSE;
+    OpusApi api;
+    if (!bind(lib, "opus_decoder_create", api.create) || !bind(lib, "opus_decode", api.decode) ||
+        !bind(lib, "opus_decoder_ctl", api.ctl) || !bind(lib, "opus_decoder_destroy", api.destroy) ||
+        !bind(lib, "opus_packet_get_nb_frames", api.nbFrames) ||
+        !bind(lib, "opus_packet_get_samples_per_frame", api.samplesPerFrame)) {
+        dlclose(lib);
+        Py_RETURN_FALSE;
+    }
+    opusApi = api;
+    Py_RETURN_TRUE;
+}
+
+void destroyDecoder(PyObject *capsule) {
+    void *st = PyCapsule_GetPointer(capsule, DECODER_NAME);
+    if (st && opusApi.destroy)
+        opusApi.destroy(st);
+}
+
+PyObject *opusDecoder(PyObject *, PyObject *) {
+    if (!opusApi.create) {
+        PyErr_SetString(PyExc_RuntimeError, "libopus is not loaded");
+        return nullptr;
+    }
+    int err = 0;
+    void *st = opusApi.create(OPUS_RATE, OPUS_CHANNELS, &err);
+    if (!st || err != 0) {
+        PyErr_Format(PyExc_RuntimeError, "opus_decoder_create failed (%d)", err);
+        return nullptr;
+    }
+    return PyCapsule_New(st, DECODER_NAME, destroyDecoder);
+}
+
+//same frame size rules as discord.py: the packet says how long it is, a lost packet repeats the last length
+PyObject *opusDecode(PyObject *, PyObject *args) {
+    PyObject *capsule, *data;
+    int fec = 0;
+    if (!PyArg_ParseTuple(args, "OO|p", &capsule, &data, &fec))
+        return nullptr;
+    void *st = PyCapsule_GetPointer(capsule, DECODER_NAME);
+    if (!st)
+        return nullptr;
+    const unsigned char *buf = nullptr;
+    Py_ssize_t len = 0;
+    Py_buffer view{};
+    bool held = false;
+    int frameSize = OPUS_FRAME;
+    if (data == Py_None) {
+        if (fec) {
+            PyErr_SetString(PyExc_TypeError, "fec needs packet data");
+            return nullptr;
+        }
+        int32_t last = 0;
+        opusApi.ctl(st, CTL_LAST_PACKET_DURATION, &last);
+        frameSize = last > 0 ? last : OPUS_FRAME;
+    } else {
+        if (PyObject_GetBuffer(data, &view, PyBUF_SIMPLE) != 0)
+            return nullptr;
+        held = true;
+        buf = static_cast<const unsigned char *>(view.buf);
+        len = view.len;
+        int frames = opusApi.nbFrames(buf, static_cast<int32_t>(len));
+        int spf = opusApi.samplesPerFrame(buf, OPUS_RATE);
+        if (frames < 0 || spf <= 0) {
+            PyBuffer_Release(&view);
+            PyErr_Format(PyExc_ValueError, "bad opus packet (%d)", frames);
+            return nullptr;
+        }
+        frameSize = frames * spf;
+    }
+    frameSize = std::clamp(frameSize, 1, OPUS_MAX_FRAME);
+    int16_t pcm[OPUS_MAX_FRAME * OPUS_CHANNELS];
+    int got;
+    Py_BEGIN_ALLOW_THREADS
+    got = opusApi.decode(st, buf, static_cast<int32_t>(len), pcm, frameSize, fec);
+    Py_END_ALLOW_THREADS
+    if (held)
+        PyBuffer_Release(&view);
+    if (got < 0) {
+        PyErr_Format(PyExc_ValueError, "opus_decode failed (%d)", got);
+        return nullptr;
+    }
+    return PyBytes_FromStringAndSize(reinterpret_cast<const char *>(pcm),
+                                     static_cast<Py_ssize_t>(got) * OPUS_CHANNELS * 2);
+}
+
 PyMethodDef methods[] = {
     {"gain", gain, METH_VARARGS, nullptr},
     {"mix", mix, METH_VARARGS, nullptr},
@@ -206,6 +322,9 @@ PyMethodDef methods[] = {
     {"peak", peak, METH_O, nullptr},
     {"levels", levels, METH_VARARGS, nullptr},
     {"tones", tones, METH_VARARGS, nullptr},
+    {"opusLoad", opusLoad, METH_VARARGS, nullptr},
+    {"opusDecoder", opusDecoder, METH_NOARGS, nullptr},
+    {"opusDecode", opusDecode, METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
 

@@ -73,8 +73,7 @@ class CommandsMixin:
   /camera  turn your webcam on or off (F12)
   /settings (F3 or ⚙)  appearance, notifications, chat, voice and video, privacy, plugins, about
   /plugins  switch extras on and off: MessageLogger, ClearURLs, FakeNitro, SilentTyping, CallTimer and more
-  /replace idk => i don't know   swap words when you send (/replace -idk removes, /replace lists)
-  /keywords uncord   get notified when a message says it (/keywords -uncord removes, /keywords lists)
+  TextReplace swaps and KeywordNotify words are set in Settings → Plugins
   <t:18:30>, <t:2026-12-25 09:00> or <t:+2h> in a message becomes a timestamp in everyone's own time
   Start a message with // to send a literal slash."""
 
@@ -97,8 +96,7 @@ class CommandsMixin:
                 ("watch", "watch a stream or camera"), ("camera", "your webcam on or off"),
                 ("plugins", "switch extras on and off"), ("inbox", "unreads and mentions"),
                 ("join", "join or call"), ("leave", "leave the call"), ("theme", "change colours"),
-                ("nick", "change your nickname here"), ("readall", "mark everything read"),
-                ("replace", "words to swap when you send"), ("keywords", "words that notify you"))
+                ("nick", "change your nickname here"), ("readall", "mark everything read"))
 
     async def appCommands(self, ch) -> list:
         #flattened to (path, command, bot name) so subcommands are "name sub"
@@ -469,10 +467,6 @@ class CommandsMixin:
                     Picker(entries, placeholder="Theme", title=f"Theme (now {self.theme})"),
                     lambda t: self._setTheme(t) if t else None,
                 )
-        elif name == "replace":
-            self.editReplace(arg)
-        elif name in ("keywords", "keyword"):
-            self.editKeywords(arg)
         elif name == "sfx":
             on_ = arg.lower() not in ("off", "0", "no") if arg else not self.cfg.get("sfx", True)
             self.cfg["sfx"] = on_
@@ -497,49 +491,6 @@ class CommandsMixin:
             await self.action_quit()
         else:
             await self.runAppCommand(cmd)
-
-    def editReplace(self, arg: str) -> None:
-        rules = dict(self.cfg.get("text_replace") or {})
-        if not arg:
-            body = "\n".join(f"{k} => {v}" for k, v in rules.items()) or "None yet. /replace idk => i don't know"
-            self.notify(body, title="TextReplace", markup=False, timeout=10)
-            return
-        if arg.startswith("-"):
-            gone = rules.pop(arg[1:].strip(), None)
-            self.notify("Removed." if gone is not None else "That isn't one of your swaps.", markup=False)
-        else:
-            old, sep, new = arg.partition("=>")
-            old, new = old.strip(), new.strip()
-            if not sep or not old or len(old) > 100 or len(new) > 500 or len(rules) >= 100 and old not in rules:
-                self.notify("Use /replace word => replacement (up to 100 swaps).", severity="warning", markup=False)
-                return
-            rules[old] = new
-            self.notify(f"{old} => {new}", title="Swap saved", markup=False)
-        self.cfg["text_replace"] = rules
-        self.cfg.save()
-
-    def editKeywords(self, arg: str) -> None:
-        words = list(self.cfg.get("keywords") or [])
-        if not arg:
-            self.notify(", ".join(words) or "None yet. /keywords word", title="KeywordNotify", markup=False, timeout=10)
-            return
-        if arg.startswith("-"):
-            w = arg[1:].strip().lower()
-            if w in words:
-                words.remove(w)
-                self.notify("Removed.", markup=False)
-            else:
-                self.notify("That isn't one of your keywords.", markup=False)
-        else:
-            w = arg.lower()
-            if len(w) > 64 or len(words) >= 50 and w not in words:
-                self.notify("Keywords are up to 64 characters, 50 at most.", severity="warning", markup=False)
-                return
-            if w not in words:
-                words.append(w)
-            self.notify(f"You'll be notified when someone says {w}.", markup=False)
-        self.cfg["keywords"] = words
-        self.cfg.save()
 
     def _setTheme(self, t: str) -> None:
         self.theme = t

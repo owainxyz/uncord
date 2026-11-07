@@ -24,6 +24,9 @@ DEFAULTS: dict[str, Any] = {
     "sfx": True,
     "sfx_volume": 100,
     "user_volume": {},  #user id to volume percent
+    "text_replace": {},
+    "keywords": [],
+    "consented": {},
 }
 
 

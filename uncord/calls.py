@@ -509,9 +509,9 @@ class CallsMixin:
             return
         dec = self._watchOpus.get(ssrc)
         if dec is None:
-            from discord import opus
+            from .voice import newDecoder
 
-            dec = self._watchOpus[ssrc] = opus.Decoder()
+            dec = self._watchOpus[ssrc] = newDecoder()
         try:
             pcm = dec.decode(bytes(packet), fec=False)
         except Exception:

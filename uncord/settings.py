@@ -38,6 +38,7 @@ class SettingsScreen(ModalScreen):
     SettingsScreen .st-col Select { width: 1fr; }
     SettingsScreen Select { width: 44; margin-bottom: 1; }
     SettingsScreen Input { width: 44; margin-bottom: 1; }
+    SettingsScreen .plugin-input { width: 1fr; margin: -1 0 1 7; }
     SettingsScreen Button { margin: 0 1 1 0; min-width: 16; }
     SettingsScreen Slider { margin-bottom: 1; }
     SettingsScreen #st-foot { height: 1; color: $text-muted; }
@@ -229,7 +230,37 @@ class SettingsScreen(ModalScreen):
                              classes="st-row plugin-row", id=f"row-{key}")
             row.searchText = f"{name} {desc}".lower()
             yield row
+            extra = self.pluginInput(key)
+            if extra is not None:
+                extra.searchText = row.searchText
+                yield extra
         yield Button("Turn all back to defaults", id="btn-plugin-reset")
+
+    PLUGIN_INPUTS = {
+        "text_replace": ("idk => i don't know; tbh => to be honest", "text_replace"),
+        "keyword_notify": ("uncord, nix, your name", "keywords"),
+    }
+
+    def pluginInput(self, key: str):
+        spec = self.PLUGIN_INPUTS.get(key)
+        if spec is None:
+            return None
+        placeholder, cfgKey = spec
+        value = plugins.formatRules(self.cfg.get(cfgKey) or {}) if key == "text_replace" else \
+            ", ".join(self.cfg.get(cfgKey) or [])
+        return Input(value=value, placeholder=placeholder, id=f"in-pl-{key}", classes="plugin-row plugin-input")
+
+    def _savePluginInput(self, inp) -> None:
+        key = (inp.id or "")[6:]
+        spec = self.PLUGIN_INPUTS.get(key)
+        if spec is None:
+            return
+        cfgKey = spec[1]
+        value = plugins.parseRules(inp.value) if key == "text_replace" else plugins.parseKeywords(inp.value)
+        if self.cfg.get(cfgKey) != value:
+            self.cfg[cfgKey] = value
+            self.cfg.save()
+            self.app.notify("Saved.", timeout=2)
 
     def _about(self):
         user = self.app.client.user
@@ -380,10 +411,15 @@ class SettingsScreen(ModalScreen):
     def on_input_submitted(self, ev) -> None:
         if ev.input.id == "in-translate_to":
             self._saveTranslate(ev.value)
+        elif (ev.input.id or "").startswith("in-pl-"):
+            self._savePluginInput(ev.input)
 
     def on_input_blurred(self, ev) -> None:
-        if getattr(ev.input, "id", "") == "in-translate_to":
+        iid = getattr(ev.input, "id", "") or ""
+        if iid == "in-translate_to":
             self._saveTranslate(ev.input.value)
+        elif iid.startswith("in-pl-"):
+            self._savePluginInput(ev.input)
 
     def on_button_pressed(self, ev) -> None:
         bid = ev.button.id

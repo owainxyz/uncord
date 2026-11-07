@@ -79,6 +79,10 @@ def safeUrl(url: str) -> Optional[str]:
     return url
 
 
+#cyrillic and greek letters that look like latin ones, a host part made only of these is a fake latin name
+CONFUSABLE = set("аеорсухіјѕԁһӏԛԝꙇаАВЕКМНОРСТХУІЈЅԌԚԜοαν") | set("ιкмтвнρτυχѵ")
+
+
 #a host part mixing latin with lookalike letters (dіscord.com with a cyrillic і) gives the real ascii name
 def lookalike(url: str) -> Optional[str]:
     try:
@@ -97,6 +101,9 @@ def lookalike(url: str) -> Optional[str]:
         except UnicodeError:
             return real
         if not shown.isascii() and any("a" <= c <= "z" or "0" <= c <= "9" for c in shown.lower()):
+            return real
+        letters = [c for c in shown if c.isalpha()]
+        if letters and not shown.isascii() and all(c in CONFUSABLE for c in letters):
             return real
     return None
 
