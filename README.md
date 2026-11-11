@@ -2,6 +2,8 @@
 
 Discord in your terminal: servers, DMs, voice and video calls, images and GIFs, and screen sharing both ways. It logs in as your own account, so everything you see in the official app is here too.
 
+<picture><source media="(prefers-color-scheme: light)" srcset="https://stats.gentoo.lol/light/uncord.svg"><img src="https://stats.gentoo.lol/uncord.svg" alt="uncord stats" width="100%"></picture>
+
 Questions or ideas? Join the [uncord Discord server](https://discord.gg/fubfK8C6Cm).
 
 > [!WARNING]
