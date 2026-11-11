@@ -350,6 +350,8 @@ class MessageList(VerticalScroll):
         Binding("t", "thread", "Thread", show=False),
         Binding("P", "pin", "Pin", show=False),
         Binding("J", "jump_reply", "Jump to reply", show=False),
+        Binding("b", "save", "Save", show=False),
+        Binding("f", "forward", "Forward", show=False),
         Binding("escape,i,slash", "back", "Back"),
     ]
 
@@ -501,3 +503,11 @@ class MessageList(VerticalScroll):
     def action_pin(self) -> None:
         if m := self._msg():
             self.app.togglePin(m)
+
+    def action_save(self) -> None:
+        if m := self._msg():
+            self.app.toggleSaved(m)
+
+    def action_forward(self) -> None:
+        if m := self._msg():
+            self.app.forwardMessage(m)

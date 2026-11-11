@@ -437,8 +437,8 @@ class ProfileScreen(ModalScreen):
 class GifTile(Vertical):
 
     DEFAULT_CSS = """
-    GifTile { width: 1fr; height: 10; border: round $foreground 15%; align: center middle; }
-    GifTile.sel { border: round $accent; }
+    GifTile { width: 1fr; height: 10; border: solid $foreground 15%; align: center middle; }
+    GifTile.sel { border: solid $accent; }
     GifTile .gifph { width: auto; height: 1; color: $text-muted; }
     """
 
@@ -646,7 +646,7 @@ class FileBrowser(ModalScreen):
 
     BINDINGS = [Binding("escape", "close", "Close", show=False)]
     DEFAULT_CSS = """
-    FileBrowser .fb-box { width: 92%; height: 90%; border: round $foreground 50%; background: $background; padding: 0 1; }
+    FileBrowser .fb-box { width: 92%; height: 90%; border: solid $foreground 50%; background: $background; padding: 0 1; }
     FileBrowser #fb-path { height: 1; text-style: bold; }
     FileBrowser #fb-row { height: 1fr; }
     FileBrowser #fb-list { width: 1fr; border: none; background: transparent; }

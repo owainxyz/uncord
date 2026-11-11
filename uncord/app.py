@@ -103,12 +103,15 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
     ENABLE_COMMAND_PALETTE = False
     CSS = """
     Screen { layout: vertical; }
+    * { scrollbar-size-vertical: 1; scrollbar-color: $foreground 30%; scrollbar-color-hover: $foreground 50%;
+        scrollbar-color-active: $foreground 60%; scrollbar-background: $background;
+        scrollbar-background-hover: $background; scrollbar-background-active: $background; }
     #body { height: 1fr; }
     #side { width: 30; border-right: vkey $foreground 25%; }
     #side.hidden { display: none; }
     #memberpane { width: 32; border-left: vkey $foreground 25%; padding: 0 1; scrollbar-size-vertical: 1; }
     #memberpane.hidden { display: none; }
-    #sidebar { height: 1fr; padding: 0; scrollbar-size-vertical: 1; }
+    #sidebar { height: 1fr; padding: 0; overflow-x: hidden; }
     #me { height: 3; padding: 0 1; border-top: hkey $foreground 25%; }
     #me.incall { height: 6; }
     #main { width: 1fr; }
@@ -160,8 +163,10 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
     #voicebar.on { display: block; }
     Toast { width: 50; max-width: 50%; padding: 0 1; }
     ModalScreen { align: center middle; }
-    .modal { width: 76; max-width: 95%; height: 26; max-height: 90%; border: round $foreground 50%;
+    .modal { width: 76; max-width: 95%; height: 26; max-height: 90%; border: solid $foreground 50%;
              background: $background; padding: 0 1; }
+    .modal.settings { width: 112; max-width: 98%; height: 38; max-height: 95%; }
+    .modal Input { border: none; height: 1; padding: 0 1; margin-bottom: 1; background: $foreground 10%; }
     .modal.small { height: 5; }
     .modal.tall { height: 90%; width: 90; }
     .modal.image { width: 90%; height: 90%; }
@@ -532,7 +537,7 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                                      allow_expand=bool(branch))
                 stack.append(node)
             ml = self.query_one("#messages", MessageList)
-            ml.mount_all([Static(Text.from_ansi(a), classes="msg snapmsg") for a in data.get("messages", [])])
+            ml.mount_all([Static(Text.from_ansi(snapshot.tidy(a)), classes="msg snapmsg") for a in data.get("messages", [])])
             ml.call_after_refresh(ml.scroll_end, animate=False)
             if data.get("title"):
                 self.query_one("#title", Static).update(
@@ -1832,7 +1837,9 @@ class Uncord(ServersMixin, PickersMixin, MessageActionsMixin, AttachMixin, Comma
                 kw = dict(silent=True) if silent else {}
                 if replyTo:
                     kw.update(reference=replyTo, mention_author=not self.plugin("no_reply_mention"))
-                await self.current.send(out, **kw)
+                parts = plugins.splitMessage(out) if self.plugin("split_long") else [out]
+                for i, part in enumerate(parts):
+                    await self.current.send(part, **(kw if i == 0 else {k: v for k, v in kw.items() if k == "silent"}))
         except discord.HTTPException as e:
             self.notify(f"Send failed: {e.text or e}", severity="error", markup=False)
             #put the edit or reply back too or enter again would post it as a new message

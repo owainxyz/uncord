@@ -631,6 +631,32 @@ OWNER_CROWN = True
 SHOW_LINK_DOMAINS = True
 
 
+#one line for a file: audio gets a play button and waveform, the rest a link and size
+def attachmentLine(a, idx: Optional[int]) -> Text:
+    ct = (a.content_type or "").lower()
+    isVoice = getattr(a, "is_voice_message", lambda: False)()
+    if idx is not None and (
+        isVoice
+        or ct.startswith("audio/")
+        or a.filename.lower().endswith((".ogg", ".mp3", ".wav", ".m4a", ".flac", ".opus"))
+    ):
+        dur = getattr(a, "duration", None)
+        play = Style(meta={"play": idx})
+        line = Text("▶ ", style=Style(color="green", bold=True) + play)
+        line.append("🎤 voice message " if isVoice else f"🎵 {a.filename} ", style=Style(bold=isVoice) + play)
+        if dur:
+            line.append(f"{int(dur // 60)}:{int(dur % 60):02d} ", style=Style(color="bright_black") + play)
+        line.append(waveBars(getattr(a, "waveform", None)), style=Style(color="green") + play)
+        line.append("  click or v to play", style="bright_black")
+        return line
+    kind = "🖼" if ct.startswith("image/") else "🎞" if ct.startswith("video/") else "📎"
+    line = Text(kind + " ") + link(a.filename, a.url, Style(color="cyan", underline=True))
+    line.append(f"  {humanSize(a.size)}", style="bright_black")
+    if a.is_spoiler():
+        line.append("  spoiler · s to reveal", style="red")
+    return line
+
+
 def renderMessage(
     m: discord.Message,
     meId: int,
@@ -708,37 +734,21 @@ def renderMessage(
     for idx, a in enumerate(m.attachments):
         if a.url in previewed and (reveal or not a.is_spoiler()):
             continue
-        ct = (a.content_type or "").lower()
-        isVoice = getattr(a, "is_voice_message", lambda: False)()
-        if (
-            isVoice
-            or ct.startswith("audio/")
-            or a.filename.lower().endswith((".ogg", ".mp3", ".wav", ".m4a", ".flac", ".opus"))
-        ):
-            dur = getattr(a, "duration", None)
-            play = Style(meta={"play": idx})
-            line = Text("▶ ", style=Style(color="green", bold=True) + play)
-            line.append(
-                "🎤 voice message " if isVoice else f"🎵 {a.filename} ", style=Style(bold=isVoice) + play
-            )
-            if dur:
-                line.append(
-                    f"{int(dur // 60)}:{int(dur % 60):02d} ", style=Style(color="bright_black") + play
-                )
-            line.append(waveBars(getattr(a, "waveform", None)), style=Style(color="green") + play)
-            line.append("  click or v to play", style="bright_black")
-            extras.append(line)
-            continue
-        kind = (
-            "🖼"
-            if (a.content_type or "").startswith("image/")
-            else "🎞" if (a.content_type or "").startswith("video/") else "📎"
-        )
-        line = Text(kind + " ") + link(a.filename, a.url, Style(color="cyan", underline=True))
-        line.append(f"  {humanSize(a.size)}", style="bright_black")
-        if a.is_spoiler():
-            line.append("  spoiler · s to reveal", style="red")
-        extras.append(line)
+        extras.append(attachmentLine(a, idx))
+    for snap in getattr(m, "message_snapshots", None) or ():
+        extras.append(Text("↪ forwarded", style="italic bright_black"))
+        if snap.content:
+            quoted = Text()
+            for line in markdown(snap.content, ctx).split("\n"):
+                quoted.append("▎ ", style="bright_black")
+                quoted.append_text(line)
+                quoted.append("\n")
+            quoted.rstrip()
+            extras.append(quoted)
+        for a in snap.attachments:
+            if a.url in previewed and (reveal or not a.is_spoiler()):
+                continue
+            extras.append(Text("▎ ", style="bright_black") + attachmentLine(a, None))
     for st in m.stickers:
         if st.url in previewed:
             continue

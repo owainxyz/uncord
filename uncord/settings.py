@@ -14,10 +14,10 @@ from . import __version__, env, plugins
 TABS = (("appearance", "Appearance"), ("notifications", "Notifications"), ("chat", "Chat"),
         ("voice", "Voice & video"), ("privacy", "Privacy"), ("plugins", "Plugins"), ("about", "About"))
 
-ICON_STYLES = (("Automatic (icons if a Nerd Font is installed)", "auto"), ("Nerd Font icons", "nerd"),
+ICON_STYLES = (("Automatic", "auto"), ("Nerd Font", "nerd"),
                ("Emoji", "emoji"))
 
-SPACING = (("Compact", "0"), ("Cozy (a gap between people)", "1"), ("Roomy", "2"))
+SPACING = (("Compact", "0"), ("Cozy", "1"), ("Roomy", "2"))
 
 
 class SettingsScreen(ModalScreen):
@@ -28,7 +28,6 @@ class SettingsScreen(ModalScreen):
         Binding("ctrl+pageup,alt+left", "step(-1)", show=False),
     ]
     DEFAULT_CSS = """
-    SettingsScreen .settings { width: 112; max-width: 98%; height: 38; max-height: 95%; }
     SettingsScreen TabbedContent { height: 1fr; }
     SettingsScreen TabPane { padding: 0; height: 1fr; }
     SettingsScreen .st-body { height: 1fr; padding: 0 1; scrollbar-size-vertical: 1; }
@@ -40,11 +39,10 @@ class SettingsScreen(ModalScreen):
     SettingsScreen .st-col { width: 1fr; height: auto; margin-right: 2; }
     SettingsScreen .st-col Select { width: 1fr; }
     SettingsScreen Select { width: 44; margin-bottom: 1; }
-    SettingsScreen Input { width: 44; margin-bottom: 1; }
+    SettingsScreen Input { width: 44; }
     SettingsScreen .plugin-input { width: 1fr; margin: -1 0 1 7; }
     SettingsScreen Button { margin: 0 1 1 0; min-width: 16; }
     SettingsScreen Slider { margin-bottom: 1; }
-    SettingsScreen #st-foot { height: 1; color: $text-muted; }
     """
 
     def __init__(self, tab: str = "appearance") -> None:
@@ -67,7 +65,6 @@ class SettingsScreen(ModalScreen):
                 for key, label in TABS:
                     with TabPane(label, id=key):
                         yield VerticalScroll(id=f"st-{key}", classes="st-body")
-            yield Static("←/→ on the tabs or alt+←/→ to switch · esc close · changes save straight away", id="st-foot")
 
     def on_mount(self) -> None:
         self.build(self.tab)
@@ -111,7 +108,7 @@ class SettingsScreen(ModalScreen):
 
     def select(self, key: str, options, value) -> Select:
         vals = {v for _l, v in options}
-        return Select(options, value=value if value in vals else options[0][1], allow_blank=False, id=f"sel-{key}")
+        return Select(options, value=value if value in vals else options[0][1], allow_blank=False, compact=True, id=f"sel-{key}")
 
     def slider(self, key: str, value, lo, hi, step=1, **kw):
         from .widgets import Slider
@@ -161,7 +158,7 @@ class SettingsScreen(ModalScreen):
         yield Static("DMs listed in the sidebar")
         yield self.select("dm_limit", [(str(n), str(n)) for n in (10, 20, 30, 50, 100)], str(cfg.get("dm_limit", 30)))
         yield Static("Translate messages into (language code like en, fr, es)")
-        yield Input(value=cfg.get("translate_to") or "", placeholder="your system language", id="in-translate_to")
+        yield Input(value=cfg.get("translate_to") or "", placeholder="your system language", id="in-translate_to", compact=True)
         yield Static("File picker for uploads")
         from .filepick import TUI_CHOOSERS
 
@@ -230,7 +227,7 @@ class SettingsScreen(ModalScreen):
         yield Static("", id="privacy-out")
 
     def _plugins(self):
-        yield Input(value=self.filter, placeholder="Search plugins…", id="in-plugin-filter")
+        yield Input(value=self.filter, placeholder="Search plugins…", id="in-plugin-filter", compact=True)
         count = sum(plugins.enabled(self.cfg, k) for k, *_r in plugins.PLUGINS)
         yield Static(Text(f"{count} of {len(plugins.PLUGINS)} on", style="bright_black"))
         for key, name, desc, _d in plugins.PLUGINS:
@@ -257,7 +254,7 @@ class SettingsScreen(ModalScreen):
         placeholder, cfgKey = spec
         value = plugins.formatRules(self.cfg.get(cfgKey) or {}) if key == "text_replace" else \
             ", ".join(self.cfg.get(cfgKey) or [])
-        return Input(value=value, placeholder=placeholder, id=f"in-pl-{key}", classes="plugin-row plugin-input")
+        return Input(value=value, placeholder=placeholder, id=f"in-pl-{key}", classes="plugin-row plugin-input", compact=True)
 
     def _savePluginInput(self, inp) -> None:
         key = (inp.id or "")[6:]

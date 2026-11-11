@@ -35,6 +35,7 @@ PLUGINS = (
     ("keyword_notify", "KeywordNotify", "notify you when a message says one of your words, set them below", True),
     ("fix_embeds", "FixEmbeds", "send x.com, twitter.com and reddit.com links as fxtwitter and rxddit so they embed", False),
     ("owner_crown", "OwnerCrown", "show 👑 next to the server owner", True),
+    ("split_long", "SplitLongMessages", "messages over 2000 characters are sent in parts instead of failing", True),
     ("moyai", "Moyai", "🗿", False),
 )
 DEFAULTS = {key: on for key, _n, _d, on in PLUGINS}
@@ -122,6 +123,42 @@ def parseKeywords(text: str) -> list:
         if w and len(w) <= 64 and w not in out and len(out) < MAX_KEYWORDS:
             out.append(w)
     return out
+
+
+#splitlongmessages
+
+MESSAGE_LIMIT = 2000
+_FENCE = re.compile(r"```(?:([\w+\-]*)\n)?")
+
+
+#cuts at a line break or a space where it can, and closes and reopens a code block that spans two parts
+def splitMessage(text: str, limit: int = MESSAGE_LIMIT) -> list:
+    if len(text) <= limit:
+        return [text]
+    parts = []
+    fence = None
+    rest = text
+    while rest:
+        prefix = "" if fence is None else f"```{fence}\n"
+        if len(prefix) + len(rest) <= limit:
+            parts.append(prefix + rest)
+            break
+        room = limit - len(prefix) - 4
+        cut = rest.rfind("\n", 0, room + 1)
+        if cut < room // 2:
+            cut = rest.rfind(" ", 0, room + 1)
+        if cut < room // 2:
+            cut = room
+        chunk, rest = rest[:cut], rest[cut:]
+        if rest[:1] in ("\n", " "):
+            rest = rest[1:]
+        for match in _FENCE.finditer(chunk):
+            fence = (match.group(1) or "") if fence is None else None
+        if fence is not None:
+            chunk += "\n```"
+        if (prefix + chunk).strip():
+            parts.append(prefix + chunk)
+    return parts
 
 
 #sendtimestamps

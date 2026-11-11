@@ -38,6 +38,8 @@ ICONS = {
     "id": ("", "⧉"),
     "raw": ("", "{ }"),
     "status": ("", "✎"),
+    "bookmark": ("\uf02e", "🔖"),
+    "forward": ("\uf064", "↪"),
 }
 
 STYLES = ("auto", "nerd", "emoji")

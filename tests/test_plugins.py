@@ -72,6 +72,36 @@ class LinkPluginsTest(unittest.TestCase):
         self.assertEqual(plugins.clearUrls("https://e.com/?si=keep"), "https://e.com/?si=keep")
 
 
+class SplitTest(unittest.TestCase):
+
+    def testShortIsUntouched(self):
+        self.assertEqual(plugins.splitMessage("hi"), ["hi"])
+        self.assertEqual(plugins.splitMessage("x" * 2000), ["x" * 2000])
+
+    def testCutsAtLinesAndWords(self):
+        text = "\n".join(f"line {i} " + "word " * 20 for i in range(80))
+        parts = plugins.splitMessage(text)
+        self.assertGreater(len(parts), 1)
+        self.assertTrue(all(0 < len(p) <= 2000 for p in parts))
+        self.assertEqual("".join(parts).split(), text.split())
+
+    def testOneLongWord(self):
+        parts = plugins.splitMessage("x" * 5000)
+        self.assertTrue(all(len(p) <= 2000 for p in parts))
+        self.assertEqual("".join(parts), "x" * 5000)
+
+    def testCodeBlockIsClosedAndReopened(self):
+        code = "\n".join(f"print({i})" for i in range(400))
+        parts = plugins.splitMessage(f"look\n```py\n{code}\n```\ndone")
+        self.assertGreater(len(parts), 1)
+        for p in parts:
+            self.assertLessEqual(len(p), 2000)
+            self.assertEqual(p.count("```") % 2, 0)
+        self.assertTrue(parts[1].startswith("```py\n"))
+        kept = [line for p in parts for line in p.split("\n") if line.startswith("print(")]
+        self.assertEqual(kept, code.split("\n"))
+
+
 class RegistryTest(unittest.TestCase):
 
     def testKeysAreUnique(self):

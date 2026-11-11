@@ -29,6 +29,7 @@ DEFAULTS: dict[str, Any] = {
     "consented": {},
     "instant_start": True,
     "icon_style": "auto",
+    "saved": [],
 }
 
 

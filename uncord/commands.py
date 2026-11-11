@@ -20,6 +20,20 @@ from .calls import SHARE_QUALITIES
 log = logging.getLogger("uncord")
 
 
+FACES = {"shrug": "¯\\\\_(ツ)\\_/¯", "tableflip": "(╯°□°)╯︵ ┻━┻", "unflip": "┬─┬ノ( º _ ºノ)", "lenny": "( ͡° ͜ʖ ͡°)"}
+
+
+#the small text commands the desktop app has: a face on the end, /me and /spoiler
+def textCommand(name: str, arg: str):
+    if name in FACES:
+        return f"{arg} {FACES[name]}".strip()
+    if name == "me" and arg:
+        return f"_{arg}_"
+    if name == "spoiler" and arg:
+        return f"||{arg}||"
+    return None
+
+
 class CommandsMixin:
 
     #commands
@@ -41,6 +55,7 @@ class CommandsMixin:
   click a reaction to add/remove yours, click the trailing + to pick a new one
   v view image/sticker/emoji in the terminal   o open link   s reveal spoilers
   y copy text   c copy message link   t open thread   P pin/unpin
+  b save or unsave (see them with /saved)   f forward to another chat
   m DM the author   p profile (with avatar)   J jump to the replied message   g/G top/bottom   esc back
   ↑ at the top loads older messages. After jumping to an old message, ↓ at the bottom loads newer ones
     and G (or clicking the bar under the chat) goes back to the present
@@ -67,6 +82,7 @@ class CommandsMixin:
 [b]Commands[/b]
   /dm name  /group a, b  /friends  /search  /pins  /members  /whois name  /status
   /upload ~/file \\[caption]  /sticker  /emoji  /media on|off  /read  /readall  /theme  /nick name
+  /saved  /shrug  /tableflip  /unflip  /lenny  /me text  /spoiler text
   /join /answer /decline /leave /mute /deafen /vad /vol  /quit
   /share [720p30|1080p30|1080p60|1440p60|stop|stats]  (F10 shares your screen in the call)
   /watch \\[name|stop|stats|popout]  watch someone's screen share or camera (F11, or click 🔴LIVE / 📷)
@@ -96,7 +112,10 @@ class CommandsMixin:
                 ("watch", "watch a stream or camera"), ("camera", "your webcam on or off"),
                 ("plugins", "switch extras on and off"), ("inbox", "unreads and mentions"),
                 ("join", "join or call"), ("leave", "leave the call"), ("theme", "change colours"),
-                ("nick", "change your nickname here"), ("readall", "mark everything read"))
+                ("nick", "change your nickname here"), ("readall", "mark everything read"),
+                ("saved", "messages you saved with b"), ("shrug", "¯\\_(ツ)_/¯ after your message"),
+                ("tableflip", "(╯°□°)╯︵ ┻━┻"), ("unflip", "┬─┬ノ( º _ ºノ)"), ("me", "say it in italics"),
+                ("spoiler", "send it as a spoiler"))
 
     async def appCommands(self, ch) -> list:
         #flattened to (path, command, bot name) so subcommands are "name sub"
@@ -416,6 +435,16 @@ class CommandsMixin:
                     )
                 except discord.HTTPException as e:
                     self.notify(f"Upload failed: {e.text or e}", severity="error", markup=False)
+        elif name in ("saved", "bookmarks"):
+            self.showSaved()
+        elif (line := textCommand(name, arg)) is not None:
+            if self.current is None:
+                self.notify("Pick a chat first (Ctrl+K).", severity="warning")
+            else:
+                try:
+                    await self.current.send(self.convertOutgoing(line))
+                except discord.HTTPException as e:
+                    self.notify(f"Send failed: {e.text or e}", severity="error", markup=False)
         elif name == "read":
             if self.current is not None:
                 self.scheduleAck(self.current, 0)

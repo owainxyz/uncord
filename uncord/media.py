@@ -125,9 +125,17 @@ def _sized(url: str, w: int = 800, h: int = 600, src=None) -> str:
     return url + ("&" if "?" in url else "?") + f"width={w}"
 
 
+#a forwarded message keeps its files in the snapshot rather than on the message
+def allAttachments(m) -> list:
+    snaps = getattr(m, "message_snapshots", None)
+    if not snaps:
+        return m.attachments
+    return list(m.attachments) + [a for s in snaps for a in s.attachments]
+
+
 def itemsOf(m: discord.Message) -> List[MediaItem]:
     out: List[MediaItem] = []
-    for a in m.attachments:
+    for a in allAttachments(m):
         ct = (a.content_type or "").lower()
         name = a.filename.lower()
         if ct.startswith("image/") or name.endswith(IMAGE_EXT):

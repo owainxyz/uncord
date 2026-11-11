@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.10 (2026-11-11)
+
+- Forwarded messages show up. Before, a forward looked like an empty message. Now you see the forwarded text and files, and its images draw in the chat
+- Press **f** on a message to forward it to another chat
+- Press **b** on a message to save it, and `/saved` lists your saved messages and jumps back to one. They're kept in your config, only on your computer
+- New plugin, **SplitLongMessages**: a message over 2000 characters is sent in parts instead of failing. It cuts at line breaks and closes and reopens code blocks
+- `/shrug`, `/tableflip`, `/unflip`, `/lenny`, `/me` and `/spoiler`, like the desktop app
+- A tidier look:
+  - Settings opens at its full size. It was squeezed into a small box that cut off half of every tab
+  - dropdowns and text boxes in settings and popups are one line tall instead of three
+  - popups have square corners
+  - scrollbars are one column wide and grey
+  - the server list no longer gets a sideways scrollbar from one long name
+- The chat drawn at startup, before Discord connects, no longer has a blank line after every message
+
 ## 1.03 (2026-11-07)
 
 - Much more of uncord is Rust now:

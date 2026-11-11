@@ -34,7 +34,7 @@ Pictures, GIFs, stickers and custom emoji are drawn right in the terminal. They 
 
 You can join voice channels and call people. Volume can be set per person, mic gain is automatic and you can turn your camera on. You can go live with one key or watch someone else's stream in the terminal. Calls and streams use Discord's DAVE end-to-end encryption, the same as the official app.
 
-It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 30 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Message rendering, picker search, images and video packets are handled in Rust, and voice decoding, mixing and levels in C++.
+It also has an inbox for unreads and mentions, bot slash commands, voice messages, Rich Presence for your games and 31 optional [plugins](#plugins). The busy parts are compiled so it stays quick. Message rendering, picker search, images and video packets are handled in Rust, and voice decoding, mixing and levels in C++.
 
 ## Installing
 
@@ -121,6 +121,7 @@ To act on a message that's already been sent, press **↑** in an empty message 
 - **v** shows an image, sticker or emoji full size, **o** opens a link and **s** reveals spoilers
 - **y** copies the text and **c** copies a link to the message
 - **t** opens its thread, **m** DMs the author and **p** shows their profile
+- **f** forwards it to another chat, and **b** saves it. `/saved` lists your saved messages and jumps back to one
 - **J** jumps to the message it replied to, **g** and **G** go to the top and bottom, and **Esc** goes back
 
 Pressing ↑ at the top of a chat loads older messages. After you've jumped back in time, ↓ at the bottom loads newer ones, and **G** (or clicking the bar under the chat) takes you back to the present. You can click reactions to add or remove yours, and click images and GIFs to enlarge them.
@@ -162,7 +163,7 @@ Open settings with the ⚙ button by your name, **F3** or `/settings`. Changes t
 
 ## Plugins
 
-uncord has 30 small extras in the spirit of Vencord plugins. You can turn them on and off in **Settings → Plugins** or with `/plugins`.
+uncord has 31 small extras in the spirit of Vencord plugins. You can turn them on and off in **Settings → Plugins** or with `/plugins`.
 
 These are on to begin with:
 
@@ -185,6 +186,7 @@ These are on to begin with:
 - **SendTimestamps** turns `<t:18:30>`, `<t:2026-12-25 09:00>` or `<t:+2h>` into a Discord timestamp, so everyone sees the time in their own time zone. A time that has already passed today means tomorrow.
 - **KeywordNotify** notifies you when a message anywhere says one of your words, even in a muted channel. Set the words in the box under it in **Settings → Plugins**, separated by commas.
 - **OwnerCrown** shows 👑 next to the server owner.
+- **SplitLongMessages** sends a message over 2000 characters in parts instead of failing. It cuts at line breaks and keeps code blocks whole.
 
 These are off to begin with:
 
@@ -208,6 +210,8 @@ Commands for **chatting**:
 - `/search` searches messages and `/pins` lists pinned messages.
 - `/upload ~/file [caption]` sends a file. `/sticker` and `/emoji` open the pickers.
 - `/read` marks the current chat as read and `/readall` marks everything as read.
+- `/saved` lists the messages you saved with **b**.
+- `/shrug`, `/tableflip`, `/unflip` and `/lenny` add the face to your message. `/me text` sends it in italics and `/spoiler text` hides it as a spoiler.
 - `/nick name` sets your nickname, and `/status` sets your status.
 
 Commands for **calls**:
@@ -226,7 +230,7 @@ Commands for **uncord itself**:
 uncord keeps its files in the usual places, and each one is readable only by you:
 
 - `~/.config/uncord/token` holds your login.
-- `~/.config/uncord/config.json` holds your settings.
+- `~/.config/uncord/config.json` holds your settings and your saved messages.
 - `~/.config/uncord/env` is an optional file for environment variables.
 - `~/.cache/uncord/uncord.log` is the log, which is useful when something goes wrong.
 

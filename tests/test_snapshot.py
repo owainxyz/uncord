@@ -26,6 +26,18 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(data["channel"], 1)
         self.assertEqual(Text.from_ansi(data["messages"][0]).plain, "hi")
 
+    def testLinesAreNotPadded(self):
+        from rich.table import Table
+
+        grid = Table.grid(expand=True)
+        grid.add_column(width=5)
+        grid.add_column(ratio=1)
+        grid.add_row("12:00", Text("hello\nthere", style="bold"))
+        ansi = snapshot.toAnsi(grid, 60)
+        self.assertEqual(Text.from_ansi(ansi).plain, "12:00hello\n     there")
+        self.assertEqual(snapshot.tidy(ansi), ansi)
+        self.assertEqual(snapshot.tidy("a   \n\x1b[1mb\x1b[0m  \x1b[0m\n\n"), "a\n\x1b[1mb\x1b[0m")
+
     def testForgetAndBadFiles(self):
         snapshot.save({"channel": 1})
         snapshot.forget()

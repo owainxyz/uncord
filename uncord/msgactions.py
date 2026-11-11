@@ -15,8 +15,8 @@ from textual import work
 from textual.widgets import Static
 
 from . import emojis as emo
-from . import gifs, media, safety, voicemsg
-from .fmt import PRIVATE, snippet
+from . import gifs, media, safety, saved, voicemsg
+from .fmt import PRIVATE, channelName, isForum, snippet
 from .screens import Confirm, GifPicker, ImageScreen, Picker, ProfileScreen, TextScreen
 
 from .panels import ChatInput
@@ -273,6 +273,9 @@ class MessageActionsMixin:
                 acts.append(("thread", f"{icon('thread')} Open thread" if has else f"{icon('thread')} Create thread", "t"))
             if self.canManage(m) or isinstance(m.channel, PRIVATE):
                 acts.append(("pin", f"{icon('pin')} Unpin" if m.pinned else f"{icon('pin')} Pin", "P"))
+        if m.is_forwardable():
+            acts.append(("forward", f"{icon('forward')} Forward", "f"))
+        acts.append(("save", f"{icon('bookmark')} Unsave" if saved.isSaved(self.cfg, m.id) else f"{icon('bookmark')} Save", "b"))
         if not mine:
             acts += [("dm", f"{icon('message')} Message {m.author.display_name}", "m")]
         acts.append(("profile", f"{icon('profile')} Profile", "p"))
@@ -305,6 +308,8 @@ class MessageActionsMixin:
                 "thread": lambda: self.openThreadOf(m),
                 "jumpreply": lambda: self.jumpToReply(m),
                 "pin": lambda: self.togglePin(m),
+                "forward": lambda: self.forwardMessage(m),
+                "save": lambda: self.toggleSaved(m),
                 "dm": lambda: self.openDm(m.author),
                 "profile": lambda: self.showProfile(m.author),
                 "translate": lambda: self.withConsent("translate", "Translate sends this message's text to Google "
@@ -400,6 +405,60 @@ class MessageActionsMixin:
             Confirm("Delete this message?", snippet(m.clean_content or "[attachment]", 120)),
             lambda yes: self.deleteMessage(m) if yes else None,
         )
+
+    def toggleSaved(self, m: discord.Message) -> None:
+        on = saved.toggle(self.cfg, saved.entry(m))
+        self.notify("Saved. /saved lists them." if on else "Not saved any more.", timeout=3)
+
+    def showSaved(self) -> None:
+        items = saved.saved(self.cfg)
+        if not items:
+            self.notify("Nothing saved yet. Select a message and press b.")
+            return
+        entries = []
+        for e in items:
+            ch = self.client.get_channel(e["channel"])
+            where = channelName(ch) if ch is not None else "unknown chat"
+            label = Text(str(e.get("author") or "?"), style="bold")
+            label.append(f"  {e.get('text') or ''}")
+            label.append(f"  {where}", style="bright_black")
+            entries.append((label, f"{e.get('author')} {e.get('text')} {where}".lower(), e))
+
+        def picked(e) -> None:
+            if e is None:
+                return
+            ch = self.client.get_channel(e["channel"])
+            if ch is None:
+                self.notify("That chat isn't around any more.")
+                return
+            self.openChannel(ch, around=discord.Object(e["id"]))
+
+        self.push_screen(Picker(entries, placeholder="Filter…", title=f"{len(entries)} saved"), picked)
+
+    def forwardMessage(self, m: discord.Message) -> None:
+        if not m.is_forwardable():
+            self.notify("That message can't be forwarded.")
+            return
+        places = [(label, hay, t) for label, hay, t in self.allDestinations()
+                  if not isinstance(t, discord.Guild) and not isForum(t)]
+
+        def picked(target) -> None:
+            if target is None:
+                return
+
+            async def go():
+                try:
+                    dest = target.user if isinstance(target, discord.Relationship) else target
+                    if isinstance(dest, discord.abc.User):
+                        dest = dest.dm_channel or await dest.create_dm()
+                    await m.forward(dest)
+                    self.notify(f"Forwarded to {channelName(dest)}.", markup=False, timeout=3)
+                except discord.HTTPException as e:
+                    self.notify(f"Couldn't forward: {e.text or e}", severity="error", markup=False)
+
+            spawn(go())
+
+        self.push_screen(Picker(places, placeholder="Forward to…"), picked)
 
     def jumpToReply(self, m: discord.Message) -> None:
         ref = m.reference
